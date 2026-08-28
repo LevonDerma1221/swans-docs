@@ -158,9 +158,9 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-  F[Fill: p, side, notional] --> Z[z = s·(2p−1)]
+  F["Fill: p, side, notional"] --> Z["z = s*(2p-1)"]
   Z --> CP[Certainty pressure]
-  TAU[Time to event τ] --> EW[Event window]
+  TAU["Time to event tau"] --> EW[Event window]
   Z --> EW
   LQ[Book liquidity L] --> LC[Liquidity stress]
   CONC[Concentration by family] --> CC[Concentration]
