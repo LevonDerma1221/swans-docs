@@ -10,17 +10,17 @@ Every member certifies each interface before production access. The suite runs a
 4. IOC and FOK behaviour.
 5. Post-only rejection on cross; reduce-only enforcement.
 6. Self-trade prevention.
-7. Rejections: price band, quantity limit, position limit, clearing-member limit, margin budget, kill switch, contract halted, outside hours. Verify tag 20001 codes.
+7. Rejections: price band, quantity limit, position limit, PB limit, margin budget, kill switch, contract halted, outside hours. Verify tag 20001 codes.
 8. Cancel on disconnect.
-9. Trade cancel (ExecType H) after CCP reject.
+9. Trade cancel (ExecType H) after PB reject.
 10. RTS 24 fields present on every order.
 
-## Drop copy (clearing members)
+## Drop copy (prime brokers)
 
-1. `TradeCaptureReport` received for each client fill with parties, account and clearing references.
+1. `TradeCaptureReport` received for each client fill with parties, account and PB references.
 2. End-of-day trade and position files reconcile to drop copies.
 
-## Clearer API (clearing members)
+## PB API (prime brokers)
 
 1. Set and read limits; verify enforcement pre-trade.
 2. Kill switch: new orders rejected, resting orders cancelled, within 1 second.

@@ -15,12 +15,12 @@ Exact behaviour that integrators depend on.
 | Replace on a partially filled order | Applies to `LeavesQty`. New quantity below `CumQty` is treated as cancel. Price change or quantity increase resets time priority; quantity decrease keeps it. |
 | Replace arrives after the order fully filled | `OrderCancelReject` with 102=1 (unknown order) and 434=2. |
 | Cancel and fill race | Whichever the engine sequences first wins. A cancel that arrives after a fill for the same order cancels only the remaining `LeavesQty`. |
-| CCP rejects a trade | Both sides receive `ExecutionReport` with `ExecType=H`, `LastQty` equal to the rejected quantity, `CumQty` and `AvgPx` restated. `LeavesQty` is unchanged: the order does not return to the book. |
-| Bust | As CCP reject, with `ExecRestatementReason` (378) = 8 and `Text` carrying the bust reference. |
+| PB rejects a trade | Both sides receive `ExecutionReport` with `ExecType=H`, `LastQty` equal to the rejected quantity, `CumQty` and `AvgPx` restated. `LeavesQty` is unchanged: the order does not return to the book. |
+| Bust | As PB reject, with `ExecRestatementReason` (378) = 8 and `Text` carrying the bust reference. |
 | Contract halted | Resting orders remain. New orders rejected with 1003. On resume, continuous trading restarts without an auction unless the rulebook specifies one for the halt type. |
 | Contract expires (`last_trading_time`) | All resting orders expired (`ExecType=C`). |
 | Session disconnect | If `CancelOnDisconnect` is on, resting orders for that session are cancelled within one second, reported on reconnect. |
-| Clearer kill | New orders rejected with 1010; resting orders cancelled with `ExecType=4`, `Text=KILL`. |
+| PB kill | New orders rejected with 1010; resting orders cancelled with `ExecType=4`, `Text=KILL`. |
 | Post-only would cross | Rejected with 1080. |
 | Reduce-only would increase exposure | Quantity is reduced to the amount that does not increase exposure; if that is zero, rejected with 1081. |
 | Self-match | Default: resting order cancelled (`ExecType=4`, `Text=STP`), incoming continues. Session option: cancel incoming (1070). |
@@ -38,7 +38,7 @@ Execution reports on a FIX session are delivered in engine order. WebSocket `acc
 
 ## Fills and fees
 
-Every fill carries `fee_components` (REST/WS) and, on FIX, tags 20070–20078 (base, certainty pressure, event window, liquidity stress, concentration, contrarian discount, maker rebate, unwind relief, floor applied). Fees are final at fill; they are not restated on CCP reject (the fee is reversed in the fee file with reference to the voided trade).
+Every fill carries `fee_components` (REST/WS) and, on FIX, tags 20070–20078 (base, certainty pressure, event window, liquidity stress, concentration, contrarian discount, maker rebate, unwind relief, floor applied). Fees are final at fill; they are not restated on PB reject (the fee is reversed in the fee file with reference to the voided trade).
 
 ## Positions and margin budget
 
@@ -47,10 +47,10 @@ Every fill carries `fee_components` (REST/WS) and, on FIX, tags 20070–20078 (b
 | Order accepted | none | `used` includes the order's incremental IM at limit price (open-order reservation) |
 | Order cancelled/expired | none | reservation released |
 | Fill (matched) | `pending_qty` updated | reservation converts to position IM (next recalculation) |
-| CCP accepted | `pending_qty` → `net_qty` | none |
-| CCP rejected / bust | `pending_qty` removed | IM recomputed, budget restored |
+| PB accepted | `pending_qty` → `net_qty` | none |
+| PB rejected / bust | `pending_qty` removed | IM recomputed, budget restored |
 | Daily/intraday margin run | none | `im`, `used`, `available` and `version` restated; pushed on the `account` channel and via `MarginReport` |
-| Clearer changes `max_swans_im` | none | `budget` restated; if `available` goes negative, new risk-increasing orders are rejected until it is positive |
+| PB changes `max_swans_im` | none | `budget` restated; if `available` goes negative, new risk-increasing orders are rejected until it is positive |
 
 ## Time in force
 

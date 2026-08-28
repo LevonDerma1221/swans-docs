@@ -43,19 +43,19 @@ Design note: a price-dependent tick (finer near 0 and 1, as some retail-facing e
 Every order passes, in this order:
 
 1. Member, account and contract enabled; within trading hours; before `last_trading_time`.
-2. Clearing member kill switch not active.
-3. Quantity within contract and clearing-member limits; price within bounds.
+2. PB kill switch not active.
+3. Quantity within contract and PB limits; price within bounds.
 4. Price band.
 5. Position limit (net absolute position after this order, including pending unconfirmed trades, within `position_limit`).
-6. Clearing-member gross and net notional limits.
-7. SWANS margin budget: the incremental initial margin of the order, at its limit price and including the account's open-order reservations, must be within the available budget set by its clearing member. See [Margin](margin.md).
+6. PB gross and net notional limits.
+7. SWANS margin budget: the incremental initial margin of the order, at its limit price and including the account's open-order reservations, must be within the available budget set by its PB. See [Margin](margin.md).
 8. Post-only and reduce-only semantics.
 
 Rejections carry a reason code in tag 20001. See [Error codes](api/error-codes.md).
 
 ## Trading hours
 
-08:00–17:30 London for continuous trading, Monday–Friday excluding UK bank holidays. Individual contracts stop trading at their `last_trading_time`, which is set before the earliest possible publication of the settlement source. The daily settlement price is the filtered fair mark at 17:00 London (or the CCP's price for cleared contracts where the CCP sets it).
+08:00–17:30 London for continuous trading, Monday–Friday excluding UK bank holidays. Individual contracts stop trading at their `last_trading_time`, which is set before the earliest possible publication of the settlement source. The daily settlement price is the filtered fair mark at 17:00 London.
 
 ## RFQ (OTF mode)
 
@@ -67,4 +67,4 @@ Per-account net position limits per contract are set in reference data and enfor
 
 ## Erroneous trades
 
-A member may request review of a trade within 15 minutes of execution. SWANS may bust or adjust trades that are clearly erroneous under the rulebook. Busted trades are reversed at the CCP and positions restored.
+A member may request review of a trade within 15 minutes of execution. SWANS may bust or adjust trades that are clearly erroneous under the rulebook. Busted trades are reversed and positions restored; PBs are notified.

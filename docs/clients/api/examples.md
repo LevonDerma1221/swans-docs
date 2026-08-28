@@ -73,7 +73,7 @@ curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/
   "fast_bound": "160000.00" }, "seq": "1849221", "server_time": "…" }
 ```
 
-### Clearer: `PUT /v1/clearer/accounts/{account}/limits`
+### PB: `PUT /v1/clearer/accounts/{account}/limits`
 ```bash
 curl -s -X PUT --cert clearer.pem --key clearer.key -H "Authorization: Bearer $CLEARER_TOKEN" -H "Idempotency-Key: 7f3a…" \
   https://api-sim.swanseventexchange.com/v1/clearer/accounts/ACC-1001/limits \
@@ -83,7 +83,7 @@ curl -s -X PUT --cert clearer.pem --key clearer.key -H "Authorization: Bearer $C
 { "status": "success", "data": { "account": "ACC-1001", "version": "312", "effective_seq": "1849222", "kill": false }, "seq": "1849222", "server_time": "…" }
 ```
 
-### Clearer: `POST /v1/clearer/accounts/{account}/kill`
+### PB: `POST /v1/clearer/accounts/{account}/kill`
 ```json
 { "status": "success", "data": { "account": "ACC-1001", "kill": true, "orders_cancelled": "7", "effective_seq": "1849230", "latency_ms": "184" }, "seq": "1849230", "server_time": "…" }
 ```
@@ -122,12 +122,12 @@ Replace rejected after fill:
 8=FIX.4.4|35=9|49=SWANS|56=MEMB01|34=214|37=98765432|11=44|41=42|39=2|434=2|102=1|58=Order fully filled|10=…|
 ```
 
-CCP reject (trade cancel):
+PB reject (trade cancel):
 ```
-8=FIX.4.4|35=8|49=SWANS|56=MEMB01|34=215|37=98765432|11=42|17=E-4|150=H|39=2|55=PFE-FDA-NDA2201-26NOV|54=2|31=0.700|32=200|151=0|14=0|6=0|880=5550012|378=8|58=CCP_REJECT code=4101|20010=1849260|60=…|10=…|
+8=FIX.4.4|35=8|49=SWANS|56=MEMB01|34=215|37=98765432|11=42|17=E-4|150=H|39=2|55=PFE-FDA-NDA2201-26NOV|54=2|31=0.700|32=200|151=0|14=0|6=0|880=5550012|378=8|58=PB_REJECT code=4101|20010=1849260|60=…|10=…|
 ```
 
-Drop copy to clearing member:
+Drop copy to prime broker:
 ```
-8=FIX.4.4|35=AE|49=SWANS|56=GCM01|34=77|571=TR-5550012|487=0|828=0|55=PFE-FDA-NDA2201-26NOV|32=200|31=0.700|75=20260826|60=…|880=5550012|20011=SWANS5550012|20040=3|552=1|54=2|37=98765432|11=42|1=ACC-1001|453=2|448=…|452=1|448=…|452=24|10=…|
+8=FIX.4.4|35=AE|49=SWANS|56=PB01|34=77|571=TR-5550012|487=0|828=0|55=PFE-FDA-NDA2201-26NOV|32=200|31=0.700|75=20260826|60=…|880=5550012|20011=SWANS5550012|20040=3|552=1|54=2|37=98765432|11=42|1=ACC-1001|453=2|448=…|452=1|448=…|452=24|10=…|
 ```

@@ -46,4 +46,4 @@ Designated liquidity providers with quoting obligations (presence, spread, size 
 
 ## Other fees
 
-Membership (annual), connectivity (per session, per cross-connect), market data (per subscriber, per level), erroneous-trade review (per request). Clearing fees are set by the CCP and your clearing member.
+Membership (annual), connectivity (per session, per cross-connect), market data (per subscriber, per level), erroneous-trade review (per request). PB fees are set by your prime broker.

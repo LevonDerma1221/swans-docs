@@ -12,7 +12,7 @@ swans/risk/
   margin/       structural max loss over admissible states, terminal VaR/ES, MPOR VaR/ES, jump, add-ons, event ramp, cap   (V6 §5, §12–15)
   fees/         v3 fee components, z-score, smoothstep, attribution
   measures/     factor exposures, scenarios, XVA (bilateral only)
-  io/           loaders, CCP parameter writer, schedule writer, price-risk file writer
+  io/           loaders, PB schedule writer, price-risk file writer
 ```
 
 ```cpp

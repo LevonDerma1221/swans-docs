@@ -59,7 +59,7 @@ Contracts belong to families (`standalone`, `nested`, `mutually_exclusive`, `clu
 
 ## Packages
 
-A spread, ladder or "yes on A / no on B" combination is listed as its own contract with its own book, symbol and ISIN. Its settlement value is a defined function of its legs' outcomes and its payout is bounded. Packages are cleared and margined as single products at the CCP, which is what makes their margin lower than the sum of the legs. For your own risk view, SWANS decomposes packages into legs in the position and risk feeds; the CCP does not.
+A spread, ladder or "yes on A / no on B" combination is listed as its own contract with its own book, symbol and ISIN. Its settlement value is a defined function of its legs' outcomes and its payout is bounded. Packages are margined as single products with their own bounded payoff, which is what makes their margin lower than the sum of the legs. SWANS decomposes packages into legs in the position and risk feeds for your own risk view.
 
 ## Lifecycle
 

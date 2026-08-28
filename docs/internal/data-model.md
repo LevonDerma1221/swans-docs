@@ -15,7 +15,7 @@ enum class FamilyType : uint8_t { Standalone, Nested, MutuallyExclusive, Cluster
 struct Family { uint32_t id; FamilyType type; InstrumentId members[16]; uint8_t n; uint8_t order[16]; uint16_t product_group; };
 
 struct SettlementSource { char code[8]; char uri[256]; uint8_t tier; };
-struct HedgeRef { uint8_t type; char identifier[24]; char ccp[8]; };   // type: SingleStockOption, Equity, ETF, IndexFuture, RatesFuture
+struct HedgeRef { uint8_t type; char identifier[24]; char venue[8]; };   // type: SingleStockOption, Equity, ETF, IndexFuture, RatesFuture
 
 struct ContractSpec {
     InstrumentId id; char symbol[24]; char isin[12]; char cfi[6]; char fisn[35];
@@ -28,19 +28,19 @@ struct ContractSpec {
     uint8_t fallback_rule;
     uint32_t family_id; uint16_t product_group;                // family for admissible-state margin and mark projection
     int32_t strike_low_x1e6, strike_high_x1e6;                // measured contracts: linear settlement between strikes
-    InstrumentId package_legs[4]; int8_t package_ratios[4];   // packages: own product at CCP
+    InstrumentId package_legs[4]; int8_t package_ratios[4];   // packages: own bounded-payoff product
     HedgeRef hedges[4];
     TransparencyMode transparency; InstrumentState state; uint32_t spec_version;
     bool rfq_only;
 };
 
 enum class MemberType : uint8_t { Fund, MarketMaker, Dealer, Broker };
-enum class ClearingMode : uint8_t { GCM, SelfClearing, Bilateral };
+enum class ClearingMode : uint8_t { PrimeBroker, SelfClearing };
 struct Member  { MemberId id; char lei[20]; char name[64]; MemberType type; bool professional_attested; bool enabled; };
-struct Account { AccountId id; MemberId member; ClearerId clearer; ClearingMode mode; char ccp_account_ref[32]; char gcm_account_ref[32]; bool enabled; };
+struct Account { AccountId id; MemberId member; ClearerId pb; ClearingMode mode; char pb_account_ref[32]; bool enabled; };
 
-struct ClearerLimits {               // set by the clearing member via the Clearer API (RTS 7 / RTS 26)
-    ClearerId clearer; AccountId account;   // account 0 = all accounts of this clearer
+struct PBLimits {                    // set by the prime broker via the PB API
+    ClearerId pb; AccountId account;         // account 0 = all accounts of this PB
     int64_t max_gross_notional_minor, max_net_notional_minor, max_daily_loss_minor, max_swans_im_minor;
     Qty max_order_qty; bool kill; uint32_t version;
 };
@@ -55,16 +55,16 @@ struct Order {
     char inv_decision_id[16]; char exec_within_firm_id[16]; bool algo;    // RTS 24
 };
 
-enum class TradeState : uint8_t { Matched, SentToCCP, CCPAccepted, CCPRejected, Cleared, Bilateral, Settled, Busted };
+enum class TradeState : uint8_t { Matched, NotifiedPB, PBAccepted, Settled, Busted };
 struct Trade {
     TradeId id; InstrumentId instrument; PriceTicks price; Qty qty;
-    OrderId buy_order, sell_order; AccountId buy_account, sell_account; ClearerId buy_clearer, sell_clearer;
-    Timestamp matched, sent_to_ccp, ccp_response; TradeState state; char ccp_trade_ref[32];
+    OrderId buy_order, sell_order; AccountId buy_account, sell_account; ClearerId buy_pb, sell_pb;
+    Timestamp matched, notified_pb, pb_response; TradeState state; char pb_trade_ref[32];
     uint8_t aggressor_side; char tvtic[52];
 };
 
 struct Position {                     // per (account, instrument); packages kept as packages here
-    AccountId account; InstrumentId instrument; Qty net_qty; Qty pending_qty;   // pending = matched, not yet CCP-accepted
+    AccountId account; InstrumentId instrument; Qty net_qty; Qty pending_qty;   // pending = matched, not yet PB-acknowledged
     int64_t avg_price_ticks_x1e6, realised_pnl_minor, vm_cumulative_minor; Timestamp as_of;
 };
 

@@ -1,6 +1,6 @@
 # PnL and variation margin
 
-SWANS reports realised and unrealised PnL for display and reconciliation. Cash movements are driven by variation margin through your clearing member, not by these fields.
+SWANS reports realised and unrealised PnL for display and reconciliation. Cash movements are driven by variation margin through your prime broker, not by these fields.
 
 Rules:
 

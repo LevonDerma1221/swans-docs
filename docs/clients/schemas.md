@@ -1,6 +1,6 @@
 # Contract schemas and the contract engine
 
-Every SWANS contract is an instance of one of ten schemas. A schema fixes the question template, which values each slot may take, the settlement source hierarchy, the resolution and void rules, the manipulation-resistance analysis and the position-limit policy. Members, clearing members and the regulator evaluate the ten schemas once; instances are listed under them continuously.
+Every SWANS contract is an instance of one of ten schemas. A schema fixes the question template, which values each slot may take, the settlement source hierarchy, the resolution and void rules, the manipulation-resistance analysis and the position-limit policy. Members, prime brokers and the regulator evaluate the ten schemas once; instances are listed under them continuously.
 
 ## Schema register
 

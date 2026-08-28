@@ -1,34 +1,45 @@
-# SWANS Event Exchange
+# SWANS Event Exchange — Technical Architecture
 
-SWANS is an FCA-regulated, professional-only trading venue for standardised, cash-settled event contracts on corporate and macro catalysts: FDA decisions, earnings thresholds, litigation outcomes, M&A completions, central bank and regulatory rulings. Contracts trade on a central limit order book, are margined futures-style, and clear at a partner central counterparty.
+SWANS is a trading venue for standardised, cash-settled event contracts (binary and measured) on corporate and macro catalysts. This document is the **working technical specification** — the team reviews and iterates on it before we build.
 
-**Visual overview:** [End-to-end views](diagrams.md).
+**Status:** draft architecture. Items marked **[confirm]** need a decision — see [Open decisions](internal/open-decisions.md).
 
-**Status:** pre-authorisation. This documentation describes the venue as it will operate at launch. Anything marked **[confirm]** is pending counsel or counterparty confirmation.
+## System at a glance
 
-## Quickstart
+```
+Members ──FIX──▶ Gateway ──▶ Engine (pre-trade + matching) ──▶ Market data ──▶ Members
+                                        │
+                                        ├──▶ Trades ──▶ PB adapter (margin calls, settlement)
+                                        └──▶ Drop copy to PBs
 
-1. **Membership.** Apply as a trading member (professional clients and eligible counterparties only). See [Onboarding](clients/onboarding.md).
-2. **Clearing.** Sign a clearing agreement with a general clearing member (GCM) that is a participant in the SWANS service at the partner CCP, or clear directly if you are a CCP member. See [Clearing](clients/clearing.md).
-3. **Connect.** FIX 4.4 for order entry and drop copy; REST and WebSocket for reference data and market data. See [API](clients/api/fix.md).
-4. **Certify.** Run the conformance scripts against the test environment. See [Conformance](clients/conformance.md).
-5. **Trade.** Contracts are priced 0.005–0.995 in ticks of 0.005 with a 100-unit payout. See [Contracts](clients/contracts.md).
+Margin engine ──▶ PB: IM/VM schedule, price file
+Settlement    ──▶ PB: final value, payout instruction
+```
 
-## Where things are
+## Clearing model (launch)
 
-| You are | Start here |
+**Bilateral with prime brokers.** No CCP at launch. Each member's PB holds collateral under a CSA. SWANS computes margin (IM, VM) and acts as calculation agent. The PB enforces margin calls and holds funds in segregated accounts. SWANS never holds collateral or guarantees trades.
+
+CCP clearing is a future upgrade path — the architecture is designed so the PB adapter can be swapped for a CCP adapter without changing the core system.
+
+## Contract economics
+
+- Price in [0.005, 0.995], tick = 0.005, 200 price levels
+- Payout: 100 units (GBP, USD or EUR), minimum notional $100
+- Futures-style margining: no premium at trade, daily VM, IM from margin engine
+- One order book per contract in yes-space
+
+## Architecture sections
+
+| Section | What it covers |
 |---|---|
-| A fund or dealer connecting to trade | [Quickstart](clients/quickstart.md), [Guarantees](clients/guarantees.md), [Semantics](clients/api/semantics.md), [FIX](clients/api/fix.md), [Margin](clients/margin.md) |
-| A clearing member | [Clearing](clients/clearing.md), [Clearer API](clients/api/clearer.md), [Reconciliation](clients/reconciliation.md) |
-| A prime broker assessing the product | [Contracts](clients/contracts.md), [Margin](clients/margin.md), [Settlement](clients/settlement.md) |
-| Building the venue | [Internal: system architecture](internal/architecture.md), [Contract engine](internal/services/contract-engine.md) |
-
-## Environments
-
-| Environment | Purpose | Location |
-|---|---|---|
-| Production | Live trading | LD4 (Equinix Slough), FIX cross-connect or VPN |
-| Certification | Conformance testing, stable | LD4 |
-| Simulation | Member development, may reset | Cloud |
-
-Base URLs and session parameters are issued at onboarding.
+| [End-to-end views](diagrams.md) | Visual diagrams of the full system |
+| [System architecture](internal/architecture.md) | Components, build/buy, deployment |
+| [Data model](internal/data-model.md) | Core types and structures (C++) |
+| [Messaging](internal/messaging.md) | Aeron, SBE, journals, recovery |
+| [Services](internal/services/engine.md) | Each service in detail |
+| [Margin engine](clients/margin.md) | Margin methodology and outputs |
+| [Settlement](clients/settlement.md) | Determination process and sources |
+| [Contracts](clients/contracts.md) | Contract specs, schemas, families |
+| [Build plan](internal/build-plan.md) | Milestones and deliverables |
+| [Open decisions](internal/open-decisions.md) | What we still need to decide |

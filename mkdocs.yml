@@ -2,6 +2,7 @@ site_name: SWANS Event Exchange — Documentation
 site_description: Client documentation and internal build specification for the SWANS MTF
 theme:
   name: material
+  custom_dir: overrides
   features: [navigation.sections, navigation.expand, content.code.copy, toc.integrate]
 markdown_extensions:
   - tables
@@ -41,7 +42,7 @@ nav:
           - FIX order entry: clients/api/fix.md
           - REST API: clients/api/rest.md
           - WebSocket API: clients/api/websocket.md
-          - Clearer API: clients/api/clearer.md
+          - PB API: clients/api/clearer.md
           - Reference types: clients/api/reference-types.md
           - Error codes: clients/api/error-codes.md
       - Conformance: clients/conformance.md

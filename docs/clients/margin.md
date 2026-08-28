@@ -2,26 +2,22 @@
 
 ## Principles
 
-SWANS positions are margined futures-style: nothing is paid at trade time; gains and losses are settled daily (and intraday when called) as variation margin; the position carries initial margin against close-out risk. Collateral is held by your clearing member and the CCP, never by SWANS.
+SWANS positions are margined futures-style: nothing is paid at trade time; gains and losses are settled daily (and intraday when called) as variation margin; the position carries initial margin against close-out risk. Collateral is held by your prime broker in segregated accounts, never by SWANS.
 
-The SWANS margin methodology (Margin Framework v6) computes one number per account. Four parties act on it:
+The SWANS margin methodology (Margin Framework v6) computes one number per account. SWANS acts as calculation agent under the CSA between member and PB.
 
 | Layer | Who binds it | Where it applies |
 |---|---|---|
-| CCP initial margin | The CCP, under its model; SWANS supplies parameters, scenarios and the methodology as evidence | What your clearing member posts to the CCP |
-| Clearing-member margin | Your clearing member, at or above the CCP number; may adopt the SWANS schedule | What you post to your clearing member |
-| SWANS margin budget | Your clearing member sets `max_swans_im` per account | Pre-trade: orders that would exceed it are rejected |
-| Prime-broker netting | Your prime broker's portfolio-margin policy | Whether the position offsets your other holdings |
+| PB margin | Your PB, using the SWANS margin schedule as calculation agent | What you post to your PB under the CSA |
+| SWANS margin budget | Your PB sets `max_swans_im` per account | Pre-trade: orders that would exceed it are rejected |
+| PB netting | Your PB's portfolio-margin policy | Whether the position offsets your other holdings |
 
 ```mermaid
 flowchart LR
-  E[SWANS margin engine] -->|parameter file, scenarios, backtests| CCP[CCP segregated service]
-  E -->|client margin schedule| GCM[Clearing member]
+  E[SWANS margin engine] -->|margin schedule per account| PB[Prime broker]
   E -->|budget per account| PT[Venue pre-trade risk]
-  E -->|price and risk file| PB[Prime broker]
-  E -->|CSA IM as calculation agent| BI[Bilateral bridge]
-  CCP --> GCM --> F[Fund]
-  PB --> F
+  E -->|price and risk file| PB
+  PB --> F[Fund]
 ```
 
 ## Methodology
@@ -47,13 +43,13 @@ IM      = min( L_gross, IM_core + A_liq + A_conc + A_oracle + A_model + A_event 
 
 **Market-maker relief.** Shorter base MPOR or lower liquidity add-on only for designated liquidity providers meeting objective criteria (quote uptime, spread, depth, inventory reporting, VM capability, pre-funded buffer, default drills, no surveillance breaches); withdrawn automatically when criteria fail, one-sided flow dominates, the event ramp activates, concentration thresholds are breached, or VM is late.
 
-**Stress-resource control.** Each account's stress loss beyond its margin is compared to its clearing member's limit; above thresholds the venue restricts risk-increasing orders, then requires full collateral on new trades.
+**Stress-resource control.** Each account's stress loss beyond its margin is compared to its PB's limit; above thresholds the venue restricts risk-increasing orders, then requires full collateral on new trades.
 
-**Cross-contract netting, staged.** (1) exact family netting over admissible states; (2) rule-based linked-contract offsets with an explicit finite state space; (3) same-sector or common-driver offsets with haircuts after validation; (4) broader portfolio margining after live data, backtesting, independent validation and CCP approval. Offsets need a conceptual hedge basis, not correlation alone.
+**Cross-contract netting, staged.** (1) exact family netting over admissible states; (2) rule-based linked-contract offsets with an explicit finite state space; (3) same-sector or common-driver offsets with haircuts after validation; (4) broader portfolio margining after live data, backtesting and independent validation. Offsets need a conceptual hedge basis, not correlation alone.
 
 ## Launch posture
 
-Phase 0: full collateral with the MPOR engine in shadow mode, collecting live data. Phase 1: hybrid margin for approved institutions on liquid contract classes. Phase 2: market-maker conditional relief. Phase 3: broader offsets. This is the offset roadmap written into the CCP agreement with objective triggers.
+Phase 0: full collateral with the MPOR engine in shadow mode, collecting live data. Phase 1: hybrid margin for approved institutions on liquid contract classes. Phase 2: market-maker conditional relief. Phase 3: broader offsets. This is the offset roadmap with objective triggers for each phase.
 
 ## Worked example
 
@@ -61,7 +57,7 @@ Market maker long 1,000,000 contracts at 0.40, £100 payout, event four weeks aw
 
 ## Variation margin and calls
 
-`VM(t_{n−1}, t_n) = V_i(t_n) − V_i(t_{n−1})` on filtered fair marks. Required resources at each margin run: `IM + VM_due + buffer`; call = requirement minus account equity; withdrawable = equity − IM − buffer. Runs are daily at 17:00 London and intraday on trigger (mark move, event ramp, concentration). Calls carry a deadline; unpaid calls block risk-increasing orders, then trigger the clearing member's default procedures. Your clearing member operationalises the call; SWANS supplies the numbers.
+`VM(t_{n−1}, t_n) = V_i(t_n) − V_i(t_{n−1})` on filtered fair marks. Required resources at each margin run: `IM + VM_due + buffer`; call = requirement minus account equity; withdrawable = equity − IM − buffer. Runs are daily at 17:00 London and intraday on trigger (mark move, event ramp, concentration). Calls carry a deadline; unpaid calls block risk-increasing orders, then trigger the PB's default procedures under the CSA. Your PB operationalises the call; SWANS supplies the numbers.
 
 ## Margin simulator
 
@@ -71,7 +67,7 @@ Members can estimate margin before trading: `POST /v1/accounts/{account}/margin/
 
 | File | Recipient | Frequency |
 |---|---|---|
-| CCP parameter file and scenario set | CCP | Daily |
+| Margin schedule per account with attribution | Prime brokers | Daily, intraday on trigger |
 | Clearing-member margin schedule per account, with add-on attribution | Clearing members | Daily, intraday on trigger |
 | Price and risk file (filtered marks, IM, sensitivities) | Prime brokers, members | Daily |
-| Backtest, sensitivity and trigger report | CCP, clearing members, FCA | Monthly |
+| Backtest, sensitivity and trigger report | Prime brokers, FCA | Monthly |

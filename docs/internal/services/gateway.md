@@ -6,6 +6,6 @@ Phase 1: QuickFIX (C++), one session per member connection, TLS at the load bala
 
 **Message set:** as in the client FIX page. Custom tags 7928, 20001–20064. RTS 24 fields (20050–20052) mandatory; missing fields rejected at the gateway with `SwansRejectCode` 1005 `MISSING_RTS24`.
 
-**Drop copy sessions:** separate `SenderCompID` per clearing member; `TradeCaptureReport` on every clearing-state change.
+**Drop copy sessions:** separate `SenderCompID` per prime broker; `TradeCaptureReport` on every state change.
 
 **Market data session:** V/W/X; production alternative SBE multicast.

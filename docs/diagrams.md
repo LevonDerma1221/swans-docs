@@ -10,9 +10,9 @@ flowchart TB
     OMS[Member OMS / EMS]
     LP[Liquidity providers]
   end
-  subgraph SWANS["SWANS MTF (LD4)"]
+  subgraph SWANS["SWANS venue (LD4)"]
     GW[FIX gateway]
-    ENG["Engine shard: pre-trade risk → matching → STP"]
+    ENG["Engine shard: pre-trade risk, matching"]
     MD[Market data publisher]
     TR[Trades service]
     POS[Position service]
@@ -23,34 +23,29 @@ flowchart TB
     CE[Contract engine]
     REF[Reference data]
     REP[Reporting and surveillance]
-    API[REST / WebSocket / Clearer API]
+    API[REST / WebSocket / PB API]
+    PBA[PB adapter]
   end
   subgraph Post-trade
-    CCP[Partner CCP segregated service]
-    GCM[Clearing members]
     PB[Prime brokers]
   end
   subgraph Oversight
     FCA[FCA / ARM]
     SURV[Surveillance system]
   end
-  OMS -->|FIX 4.4| GW --> ENG --> MD -->|FIX / WS / multicast| OMS
+  OMS -->|FIX 4.4| GW --> ENG --> MD -->|FIX / WS| OMS
   LP -->|FIX| GW
-  ENG --> TR -->|STP, seconds| CCP
-  TR -->|drop copy AE| GCM
-  CCP --> GCM --> OMS
-  PB -.->|collateral, netting| GCM
+  ENG --> TR --> PBA -->|trade notification, FIX drop copy| PB
   TR --> POS --> RISK --> MGN
   MK --> MGN
   MGN -->|budgets| ENG
-  MGN -->|schedule| GCM
-  MGN -->|parameter file| CCP
-  MGN -->|price and risk file| PB
+  MGN -->|margin schedule| PBA
+  MGN -->|price and risk file| PBA
+  PBA --> PB
   SET --> TR
-  SET --> CCP
+  SET -->|final settlement value| PBA
   CE --> REF --> ENG
-  REF --> CCP
-  GCM -->|limits, kill| API --> ENG
+  PB -->|limits, kill| API --> ENG
   REP -->|RTS 22 / 24| FCA
   REP --> SURV
 ```
@@ -61,28 +56,21 @@ flowchart TB
 sequenceDiagram
   participant F as Fund
   participant S as SWANS
-  participant C as CCP
-  participant G as Clearing member
   participant P as Prime broker
   F->>S: NewOrderSingle (FIX D)
-  S->>S: pre-trade checks incl. GCM limits and margin budget
+  S->>S: pre-trade checks (PB limits + margin budget)
   S->>S: match
   S-->>F: ExecutionReport (F)
-  S->>C: trade submission (STP)
-  C-->>S: accept
-  S-->>G: TradeCaptureReport (drop copy)
-  Note over C,G: CCP novates: faces G for F
-  C->>G: IM and VM call (CCP model, SWANS parameters)
-  G->>F: client margin (≥ CCP, SWANS schedule if adopted)
-  P->>G: collateral movement, PB decides netting vs hedge
+  S->>P: TradeCaptureReport (drop copy via PB adapter)
+  S->>P: updated margin schedule (IM/VM)
+  P->>F: margin call under CSA
   loop daily
-    S->>G: filtered marks, VM, schedule
-    C->>G: settlement price, VM
+    S->>P: filtered marks, VM, margin schedule
+    P->>F: VM settlement, margin call if needed
   end
   S->>S: settlement determination (two officers, dispute window)
-  S->>C: final settlement value
-  C->>G: cash settlement
-  G->>F: proceeds, margin release
+  S->>P: final settlement value
+  P->>F: cash settlement, margin release
 ```
 
 ## 3. Margin engine outputs
@@ -95,11 +83,9 @@ flowchart LR
   IN4[Hazards, factors, liquidity tiers] --> E
   E[Margin engine: structural max loss, MPOR Monte Carlo, jump, add-ons, event ramp]
   E --> O1[Pre-trade budgets and fast bounds]
-  E --> O2[Clearing-member schedule with attribution]
-  E --> O3[CCP parameter proposal and scenarios]
-  E --> O4[Prime-broker price and risk file]
-  E --> O5[CSA IM for bilateral bridge]
-  E --> O6[Backtests, sensitivity, trigger report]
+  E --> O2[PB margin schedule with attribution]
+  E --> O3[Price and risk file]
+  E --> O4[Backtests, sensitivity, trigger report]
 ```
 
 ## 4. Contract engine
@@ -126,11 +112,11 @@ flowchart TB
   B[Executable microprice] --> L
   T[Decayed VWAP] --> L
   M[Model mark] --> L
-  L --> FLT[Filter α] --> PRJ[Family projection] --> XF[X_fair]
+  L --> FLT[Filter] --> PRJ[Family projection] --> XF[X_fair]
   XF --> VM[Variation margin]
   XF --> IM[Initial margin]
   XF --> PF[Price file]
-  SRC[Source publication] --> P1[Officer 1: propose, hash evidence] --> P2[Officer 2: confirm] --> DW[Dispute window] --> FIN[Final settlement] --> CCP[CCP cash settlement]
+  SRC[Source publication] --> P1[Officer 1: propose, hash evidence] --> P2[Officer 2: confirm] --> DW[Dispute window] --> FIN[Final settlement] --> PB[PB cash settlement]
   DW -->|dispute| CMT[Settlement committee] --> FIN
   DL[Deadline passed] --> FB[Fallback rule] --> FIN
 ```
@@ -150,7 +136,7 @@ flowchart LR
     J2[(Shipped journals)] --> WS[Warm standby]
   end
   J --> J2
-  SVC --> CCPL[CCP link]
+  SVC --> PBA[PB adapter]
   SVC --> ARM[ARM / surveillance]
 ```
 

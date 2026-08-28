@@ -7,9 +7,9 @@
 | FIX or API change, backward-compatible | 30 days | Certification, optional | Product |
 | FIX or API change, breaking | 90 days; old version supported 6 months | Mandatory re-certification | Product, compliance |
 | Fee parameter change | 30 days | none | Board; published formulas updated in reference data |
-| Margin parameter change | 10 business days; intraday in stress under governance with same-day notice | none | Risk committee; CCP and clearing members notified |
-| Margin model change | 30 days; challenger results published to CCP and clearing members | Shadow run ≥ 30 days | Risk committee, independent validation |
-| Offset stage change | 30 days | none | Risk committee; CCP approval |
+| Margin parameter change | 10 business days; intraday in stress under governance with same-day notice | none | Risk committee; PBs notified |
+| Margin model change | 30 days; challenger results published to PBs | Shadow run ≥ 30 days | Risk committee, independent validation |
+| Offset stage change | 30 days | none | Risk committee |
 | Rulebook change | Per FCA requirements **[confirm]** | | Board, FCA notification |
 | Trading hours or calendar | 30 days | | Product |
 

@@ -1,47 +1,53 @@
-# Clearing and give-up
+# Clearing and collateral
 
-## Model
+## Launch model: bilateral with prime brokers
 
-Every trade on SWANS is submitted to the partner CCP within seconds of matching (straight-through processing). On acceptance, the CCP novates: it becomes the counterparty to each side's clearing member, and each clearing member faces its client. SWANS is not in the credit chain.
+Every trade on SWANS is notified to the member's prime broker after matching. The PB holds collateral, enforces margin, and settles. SWANS is the calculation agent — it computes the numbers, the PB executes.
 
 ```
- Fund A ──clearing agreement──▶ Clearing member A ──membership──▶ CCP ◀──membership── Clearing member B ◀── Market maker B
+Fund A ──CSA──▶ Prime Broker A ◀── margin schedule ── SWANS margin engine
+Fund B ──CSA──▶ Prime Broker B ◀── margin schedule ── SWANS margin engine
 ```
 
-The CCP clears SWANS contracts in a **segregated service**: its own default fund, its own rules and its own risk parameters, separate from the CCP's other asset classes. Only clearing members that have joined the service can clear SWANS contracts.
+SWANS is not in the credit chain. If a member defaults, the PB manages the close-out under its CSA with the member.
 
 ## Roles
 
 | Role | Who | Obligations |
 |---|---|---|
-| Trading member | Funds, dealers, market makers | Trades; posts margin to its clearing member |
-| Clearing member (GCM) | Banks and non-bank clearers that are CCP participants | Registers clients at the CCP; sets client limits on SWANS; posts margin and default fund to the CCP; collects margin from clients |
-| Self-clearing member | Market makers and dealers with CCP membership | Clears own trades directly |
-| CCP | Partner CCP | Novates, margins, settles, guarantees |
+| Trading member | Funds, dealers, market makers | Trades; posts collateral to its PB |
+| Prime broker | Banks | Holds collateral in segregated accounts; enforces IM/VM calls; settles |
+| Self-clearing member | Market makers with PB capability | Posts margin directly, no intermediary |
+| SWANS | Venue + calculation agent | Matches, computes margin, determines settlement |
 
 ## Before trading
 
-1. Sign a clearing agreement with a clearing member active in the SWANS service.
-2. Your clearing member registers your SWANS account against its CCP account and sets, through the Clearer API: max order size, gross and net notional limits, daily loss limit, SWANS margin budget, and holds a kill switch.
+1. Sign a CSA with a prime broker, naming SWANS margin engine as calculation agent.
+2. PB registers the member's account on SWANS and sets, through the PB API: max order size, gross and net notional limits, daily loss limit, margin budget, and holds a kill switch.
 3. SWANS enables trading rights on the account.
 
 ## Trade flow
 
-1. Match. `ExecutionReport` (ExecType F) to both sides with `TrdMatchID` (880) and the venue transaction ID.
-2. Submission to CCP within the STP window, tagged with each side's clearing code.
-3. CCP accept: trade state becomes `cleared`; `TradeCaptureReport` drop copy to each clearing member.
-4. CCP reject: trade state becomes `ccp_rejected`; both sides receive `ExecutionReport` with ExecType H (trade cancel); positions revert. Rejections are rare and generally indicate a limit breach at the CCP or a registration error.
-
-Time thresholds under RTS 26 **[confirm exact values]**: SWANS submits within seconds of matching; the CCP responds within seconds.
-
-## Give-up (bilateral bridge)
-
-For contracts or accounts designated `bilateral` under the rulebook, trades are not submitted to the CCP. Instead they are given up to the account's designated prime broker or dealer, which becomes counterparty of record under a give-up agreement with SWANS and a margin agreement (CSA) with the client naming SWANS as calculation agent for initial margin. This path exists so that trading can continue if the CCP service is delayed and for members whose prime broker prefers to carry the position. Cross-margining against the client's hedge is then entirely within the prime broker.
+1. **Match.** `ExecutionReport` (ExecType F) to both sides with `TrdMatchID` (880) and venue transaction ID.
+2. **PB notification.** Trade details sent to both sides' PBs via the PB adapter (FIX drop copy).
+3. **Margin update.** Margin engine recomputes IM/VM for affected accounts, sends updated schedule to PBs.
+4. **PB margin call.** PB collects margin from member if required under the CSA.
 
 ## Drop copies and files
 
-Clearing members receive real-time `TradeCaptureReport` messages for their clients' fills and, daily: trade file, position file, SWANS margin schedule per client, and the CCP parameter file for reconciliation.
+PBs receive real-time `TradeCaptureReport` messages for their clients' fills and, daily: trade file, position file, margin schedule per client, and price/risk file.
 
-## Default and porting
+## Settlement flow
 
-Handled under the CCP's rules for the segregated service. SWANS suspends trading rights on accounts of a defaulting clearing member on notice from the CCP and supports porting of client accounts to another clearing member.
+1. SWANS determines settlement value (two-officer process, dispute window).
+2. Final settlement value sent to PBs.
+3. PB executes cash settlement with member: pays out or collects based on final value.
+4. Margin released.
+
+## Default handling
+
+Handled under the PB's CSA with the member. SWANS suspends trading rights on accounts of a defaulting member on notice from the PB.
+
+## Future: CCP clearing
+
+When a CCP partner is secured, trades will be submitted for novation. The CCP will face clearing members (replacing PBs in the chain), hold a default fund, and provide a guarantee. The SWANS architecture supports this as a swap of the PB adapter for a CCP adapter — no changes to the core matching, margin, or settlement systems.

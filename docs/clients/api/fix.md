@@ -20,7 +20,7 @@
 | OrderCancelReject | 9 | out | Cancel/replace rejected |
 | SecurityListRequest / SecurityList | x / y | in / out | Contract reference data |
 | SecurityStatus | f | out | Halt, resume, expiry, settlement |
-| TradeCaptureReport | AE | out | Drop copy to clearing members |
+| TradeCaptureReport | AE | out | Drop copy to prime brokers |
 | QuoteRequest / Quote / QuoteResponse / QuoteCancel | R / S / AJ / Z | both | RFQ (OTF contracts) |
 | MarketDataRequest / Snapshot / Incremental | V / W / X | market data session | See [Market data](../market-data.md) |
 | MarginReport (custom, UM1) | UM1 | out | Account margin budget and usage |
@@ -48,7 +48,7 @@
 | 20052 | AlgoIndicator | Y | Y/N |
 | 60 | TransactTime | Y | UTC, microseconds |
 
-Parties group (453): `PartyID` (448), `PartyIDSource` (447), `PartyRole` (452). Required roles: 1 ExecutingFirm, 4 ClearingFirm, 24 CustomerAccount (CCP account reference), 12 ExecutingTrader.
+Parties group (453): `PartyID` (448), `PartyIDSource` (447), `PartyRole` (452). Required roles: 1 ExecutingFirm, 4 ClearingFirm (PB), 24 CustomerAccount (PB account reference), 12 ExecutingTrader.
 
 ## ExecutionReport (8)
 

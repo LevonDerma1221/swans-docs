@@ -1,27 +1,25 @@
 # Trades service
 
-**Owns:** the legal record of every trade, its clearing state machine, STP to the CCP, drop copies, busts.
+**Owns:** the legal record of every trade, its clearing state machine, PB notification, drop copies, busts.
 
-**State machine:** `Matched → SentToCCP → {CCPAccepted → Cleared | CCPRejected}`; `Matched → Bilateral` for bilateral accounts; `Cleared|Bilateral → Settled`; any → `Busted` (operator, with reason).
+**State machine:** `Matched → NotifiedPB → PBAccepted → Settled`; any → `Busted` (operator, with reason).
 
-**STP:** on `TradeExecuted`, build and send the CCP submission within the venue window; record accept/reject. Thresholds **[confirm RTS 26]**. On reject: `ExecutionReport` ExecType H to both sides, trade voided, positions reverted (pending → 0).
+**PB notification:** on `TradeExecuted`, send trade details to both sides' PBs via the PB adapter; deliver updated margin schedule. On PB reject (rare — limit breach): `ExecutionReport` ExecType H to both sides, trade voided, positions reverted.
 
 ```cpp
-class ICcpAdapter {
+class IPBAdapter {
 public:
-    virtual ~ICcpAdapter() = default;
-    virtual void submit(const Trade&, std::function<void(CcpResponse)>) = 0;
-    virtual void publishProductSpecs(const std::vector<ContractSpec>&) = 0;
+    virtual ~IPBAdapter() = default;
+    virtual void notifyTrade(const Trade&, std::function<void(PBResponse)>) = 0;
+    virtual void publishMarginSchedule(const MarginSchedule&) = 0;
     virtual void publishSettlement(const SettlementEvent&) = 0;
-    virtual void publishDailySettle(InstrumentId, PriceTicks) = 0;           // if SWANS sets it
-    virtual CcpMarginReport fetchEndOfDayMargin(Date) = 0;                    // reconciliation
+    virtual void publishDailySettle(InstrumentId, PriceTicks) = 0;
+    virtual PBPositionReport fetchEndOfDayPositions(Date) = 0;                   // reconciliation
 };
-struct CcpResponse { TradeId id; bool accepted; char ccp_ref[32]; uint16_t reject_code; Timestamp ts; };
+struct PBResponse { TradeId id; bool accepted; char pb_ref[32]; uint16_t reject_code; Timestamp ts; };
 ```
-Phase 1 implements `CcpSimulator` (configurable latency/failure). Phase 4 implements the chosen CCP's spec.
+Phase 1 implements `PBSimulator` (configurable latency/failure). Production implements each PB's specific FIX/API spec.
 
-**Bilateral adapter:** `IGiveUpAdapter` with the same shape, targeting the prime broker's give-up confirmation flow.
-
-**Drop copy:** `TradeCaptureReport` per clearing-state change; EOD CSV per clearer and per member.
+**Drop copy:** `TradeCaptureReport` per state change; EOD CSV per PB and per member.
 
 **Storage:** append-only journal + PostgreSQL projection.

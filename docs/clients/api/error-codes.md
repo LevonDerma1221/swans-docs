@@ -11,15 +11,15 @@
 | 1005 | MISSING_RTS24 | Required RTS 24 fields absent |
 | 1006 | DUPLICATE_CLORDID | ClOrdID matches an open order |
 | 1007 | OTR_EXCEEDED | Order-to-trade ratio limit exceeded |
-| 1010 | CLEARER_KILL | Clearing member kill switch active |
+| 1010 | PB_KILL | Prime broker kill switch active |
 | 1020 | PRICE_OUT_OF_RANGE | Price outside [0.005, 0.995] or not on tick |
 | 1021 | QTY_BELOW_MIN | |
-| 1022 | QTY_ABOVE_MAX | Contract or clearing-member max order size |
+| 1022 | QTY_ABOVE_MAX | Contract or PB max order size |
 | 1030 | PRICE_BAND | Outside static price band |
 | 1040 | POSITION_LIMIT | Would breach position limit (including pending trades) |
-| 1050 | CLEARER_GROSS_LIMIT | |
-| 1051 | CLEARER_NET_LIMIT | |
-| 1052 | CLEARER_DAILY_LOSS | |
+| 1050 | PB_GROSS_LIMIT | |
+| 1051 | PB_NET_LIMIT | |
+| 1052 | PB_DAILY_LOSS | |
 | 1060 | MARGIN_BUDGET | Incremental IM exceeds available budget |
 | 1070 | SELF_MATCH | Cancelled by self-trade prevention (incoming-cancel mode) |
 | 1080 | POST_ONLY_CROSS | Post-only order would cross |
