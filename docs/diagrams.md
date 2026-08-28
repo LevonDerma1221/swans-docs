@@ -74,7 +74,7 @@ sequenceDiagram
   Note over C,G: CCP novates: faces G for F
   C->>G: IM and VM call (CCP model, SWANS parameters)
   G->>F: client margin (≥ CCP, SWANS schedule if adopted)
-  P->>G: collateral movement; PB decides netting vs hedge
+  P->>G: collateral movement, PB decides netting vs hedge
   loop daily
     S->>G: filtered marks, VM, schedule
     C->>G: settlement price, VM
@@ -169,7 +169,7 @@ flowchart LR
   LC --> R
   CC --> R
   POS[Pre-fill position] --> U[Unwind fraction U]
-  R --> FEE["f = max(f_min, B + R·(1−ρU) − D − M)"]
+  R --> FEE["f = max(f_min, B + R*(1-rhoU) - D - M)"]
   Z --> D[Contrarian discount]
   MQ[Maker quality] --> M[Maker rebate]
   D --> FEE
