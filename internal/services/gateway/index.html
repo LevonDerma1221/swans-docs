@@ -1525,8 +1525,8 @@
 <h1 id="fix-gateway">FIX gateway</h1>
 <p>Phase 1: QuickFIX (C++), one session per member connection, TLS at the load balancer. Production: evaluate commercial engine for certification cost.</p>
 <p><strong>Responsibilities:</strong> session management; syntactic validation; symbol/ISIN → <code>InstrumentId</code>, parties → <code>AccountId</code>/<code>ClearerId</code> from the reference data snapshot; timestamp <code>received</code>; forward <code>OrderRequest</code> (SBE) to the engine shard; map engine events to <code>ExecutionReport</code>; persist every inbound/outbound FIX message to the audit journal with ns timestamps (RTS 24); per-session throttles (200 msg/s default); max open orders per account; cancel-on-disconnect.</p>
-<p><strong>Message set:</strong> as in the client FIX page. Custom tags 7928, 20001–20064. RTS 24 fields (20050–20052) mandatory; missing fields rejected at the gateway with <code>SwansRejectCode</code> 1005 <code>MISSING_RTS24</code>.</p>
-<p><strong>Drop copy sessions:</strong> separate <code>SenderCompID</code> per prime broker; <code>TradeCaptureReport</code> on every state change.</p>
+<p><strong>Message set:</strong> FIX 4.4 with custom tags 7928, 20001–20064. RTS 24 fields (20050–20052) mandatory; missing fields rejected at the gateway with <code>SwansRejectCode</code> 1005 <code>MISSING_RTS24</code>.</p>
+<p><strong>Drop copy sessions:</strong> <code>TradeCaptureReport</code> on every state change. Future: separate <code>SenderCompID</code> per prime broker when PB integration is added.</p>
 <p><strong>Market data session:</strong> V/W/X; production alternative SBE multicast.</p>
 
 

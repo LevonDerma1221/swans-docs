@@ -959,10 +959,21 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#checks-in-order" class="md-nav__link">
+  <a href="#checks-in-order-launch-full-collateral" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Checks, in order
+        Checks, in order (launch — full collateral)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#future-checks-when-pbmargin-offered" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Future checks (when PB/margin offered)
       
     </span>
   </a>
@@ -1615,28 +1626,32 @@
 
 
 <h1 id="pre-trade-risk-engine-stage">Pre-trade risk (engine stage)</h1>
-<p>Runs in the engine shard process between decode and match. <strong>Fail-closed except for the margin check</strong>, which degrades (see below).</p>
-<h2 id="checks-in-order">Checks, in order</h2>
+<p>Runs in the engine shard process between decode and match. <strong>Fail-closed.</strong></p>
+<h2 id="checks-in-order-launch-full-collateral">Checks, in order (launch — full collateral)</h2>
 <ol>
 <li>Member, account, instrument enabled; <code>Trading</code> state; before <code>last_trading_time</code>.</li>
-<li>Clearer kill (<code>ClearerLimits.kill</code>).</li>
-<li><code>1 ≤ price ≤ 199</code>; <code>qty ≥ min_qty</code>; <code>qty ≤ min(instrument.max_order_qty, limits.max_order_qty)</code>.</li>
-<li>Static price band vs reference price (most recent VM window mark, or last trade if newer): default 40 ticks.</li>
-<li>Position limit: <code>|net_qty + pending_qty + open_same_side_qty + signed_qty| ≤ position_limit</code>.</li>
-<li><strong>Full-collateral accounts:</strong> balance check — <code>available ≥ max_loss</code>, where <code>max_loss = price × payout × qty</code> (buy) or <code>(1−price) × payout × qty</code> (sell). Reject with <code>INSUFFICIENT_BALANCE</code> (1055) if insufficient. Uses cached balance snapshot from <code>collateral.balances</code> stream.</li>
-<li><strong>PB-managed accounts:</strong> Clearer gross/net notional after this order ≤ limits; daily loss ≤ limit. <strong>Margin budget:</strong> <code>IM(portfolio + open orders + this order at limit price) − IM(portfolio + open orders) ≤ budget_available</code>, where <code>budget_available = limits.max_swans_im − IM_current − reserved_open_orders</code>. Fast upper bound first: <code>qty × payout × max(p, 1−p)</code>; precise call to the margin engine only if the bound fails.</li>
+<li><code>1 &lt;= price &lt;= 199</code>; <code>qty &gt;= min_qty</code>; <code>qty &lt;= max_order_qty</code>.</li>
+<li>Static price band vs reference price (filtered fair mark, or last trade if newer): default 40 ticks.</li>
+<li>Position limit: <code>|net_qty + signed_qty| &lt;= position_limit</code>.</li>
+<li>Balance check: <code>available &gt;= max_loss</code>, where <code>max_loss = price * payout * qty</code> (buy) or <code>(1-price) * payout * qty</code> (sell). Reject with <code>INSUFFICIENT_BALANCE</code> (1055) if insufficient. Uses cached balance snapshot from <code>collateral.balances</code> stream.</li>
 <li>Post-only / reduce-only semantics.</li>
 </ol>
 <p>Self-trade prevention is in the matching stage, not here.</p>
+<h2 id="future-checks-when-pbmargin-offered">Future checks (when PB/margin offered)</h2>
+<ul>
+<li>PB kill switch (<code>ClearerLimits.kill</code>)</li>
+<li>PB gross/net notional limits; daily loss limit</li>
+<li>Margin budget: <code>IM(portfolio + this order) - IM(portfolio) &lt;= budget_available</code></li>
+<li>Fast upper bound first: <code>qty * payout * max(p, 1-p)</code>; precise margin call only if the bound fails</li>
+</ul>
 <h2 id="degradation">Degradation</h2>
-<p><strong>PB-managed accounts:</strong> Budgets arrive from the margin service with a version and timestamp. If no update for &gt; N seconds (default 30), the stage continues on the fast bound only, with all limits scaled by a configurable factor (default 0.5), and raises an alert. It rejects (<code>RISK_UNAVAILABLE</code>) only if the bound itself cannot be computed (no reference data).</p>
-<p><strong>Full-collateral accounts:</strong> Balance snapshots arrive from the collateral service via <code>collateral.balances</code>. If no update for &gt; 30 seconds, all full-collateral orders are rejected (<code>RISK_UNAVAILABLE</code>) until a fresh snapshot arrives.</p>
+<p><strong>Balance snapshots</strong> arrive from the collateral service via <code>collateral.balances</code>. If no update for &gt; 30 seconds, all orders are rejected (<code>RISK_UNAVAILABLE</code>) until a fresh snapshot arrives.</p>
 <h2 id="volatility-controls-rts-7">Volatility controls (RTS 7)</h2>
 <p>Dynamic halt: if last trade moves &gt; 30 ticks vs the price 60 s earlier, halt the instrument for 2 minutes; parameters per schema. Operator halt/resume via the ops API, journaled.</p>
 <h2 id="state-held">State held</h2>
-<p>Reference snapshot; per-account positions (net + pending); per-account open-order aggregates; <code>ClearerLimits</code> with version; margin budget cache <code>{account → {im_current, budget, version, ts}}</code>; collateral balance cache <code>{account → {available, locked, version, ts}}</code>.</p>
+<p>Reference snapshot; per-account positions; per-account open-order aggregates; collateral balance cache <code>{account -&gt; {available, locked, version, ts}}</code>. Future: <code>ClearerLimits</code>, margin budget cache.</p>
 <h2 id="latency-budget">Latency budget</h2>
-<p>Checks 1–6, 8: p99 ≤ 20 µs. Check 7 with bound: ≤ 30 µs. Precise IM call: ≤ 500 µs (rare).</p>
+<p>Checks 1-6: p99 &lt;= 20 us.</p>
 
 
 

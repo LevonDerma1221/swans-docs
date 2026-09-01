@@ -1523,13 +1523,13 @@
 
 
 <h1 id="position-service">Position service</h1>
-<p><strong>Owns:</strong> net and pending positions per (account, instrument), average price, VM accounting, package leg views, hedge positions for Product A.</p>
+<p><strong>Owns:</strong> net positions per (account, instrument), average price, package leg views, hedge positions.</p>
 <ul>
-<li><code>TradeExecuted</code> → <code>pending_qty</code> updated immediately (so pre-trade sees it). <code>PBAccepted|Bilateral</code> → moves to <code>net_qty</code>. <code>PBRejected|Busted</code> → pending removed.</li>
-<li>Packages are positions in their own right. A <strong>leg view</strong> is derived for risk and client display: for package with legs <code>(L_i, r_i)</code>, the leg view adds <code>r_i × qty</code> to each <code>L_i</code>, price allocation documented per package type.</li>
-<li>VM at each window (00:00, 08:00, 16:00 UTC): <code>net_qty × (S_t₁ − S_t₀) × payout</code>; <code>S</code> from the marks service (VM window mark).</li>
+<li><code>TradeExecuted</code> → <code>net_qty</code> updated immediately (so pre-trade sees it). At launch (full collateral), there is no PB acceptance step — trades are final on match.</li>
+<li>Future (when PB/margin offered): <code>TradeExecuted</code> → <code>pending_qty</code>; <code>PBAccepted</code> → moves to <code>net_qty</code>; <code>PBRejected|Busted</code> → pending removed.</li>
+<li>Packages are positions in their own right. A <strong>leg view</strong> is derived for risk and client display.</li>
 <li>Hedge positions uploaded by clients stored separately, never netted into venue positions, consumed by the risk engine only.</li>
-<li>API: <code>GetPosition</code>, <code>GetPortfolio(account) → [Position + LegView + HedgePosition]</code>, <code>Snapshot(seq)</code>.</li>
+<li>API: <code>GetPosition</code>, <code>GetPortfolio(account)</code>, <code>Snapshot(seq)</code>.</li>
 </ul>
 
 

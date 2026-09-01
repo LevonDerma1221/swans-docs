@@ -1650,11 +1650,12 @@
     COL --&gt;|balances| ENG
     MK[Marks] --&gt; SET[Settlement]
     SET --&gt; COL
+    RISK[Risk engine - shadow mode]
   end
 
-  MD --&gt;|market data| MEM
+  MD --&gt;|book, trades, status| MEM
   COL --&gt;|lock max loss, settle payouts| MEM
-  RISK[Risk engine] --&gt;|analytics| MEM</code></pre>
+  RISK --&gt;|price file, analytics| MEM</code></pre>
 <h2 id="2-trade-lifecycle-full-collateral">2. Trade lifecycle (full collateral)</h2>
 <pre class="mermaid"><code>sequenceDiagram
   participant M as Member

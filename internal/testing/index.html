@@ -1526,11 +1526,11 @@
 <ol>
 <li><strong>Book property tests:</strong> random order streams; invariants (never crossed after processing, quantity conserved, price-time priority, replay determinism).</li>
 <li><strong>FIX conformance suite:</strong> the scripts members receive, run in CI against the gateway.</li>
-<li><strong>PB simulator:</strong> accept/reject with latency and failure injection; verifies state machine and pending-position reversion.</li>
 <li><strong>Risk golden tests:</strong> Python reference -&gt; golden outputs; C++ matches to tolerance.</li>
-<li><strong>Backtest harness:</strong> margin report from the catalyst dataset with synthetic price paths; deliverable one.</li>
-<li><strong>End-to-end scripted day:</strong> order -&gt; fill -&gt; PB accept -&gt; position -&gt; EOD margin -&gt; PB file -&gt; settlement -&gt; cash flow.</li>
-<li><strong>Degradation tests:</strong> margin service down -&gt; fast-bound mode; PB kill -&gt; cancel within 1 s; gateway reconnect -&gt; resend.</li>
+<li><strong>Backtest harness:</strong> margin report from the catalyst dataset with synthetic price paths.</li>
+<li><strong>End-to-end scripted flow:</strong> order -&gt; fill -&gt; collateral lock -&gt; settlement -&gt; payout -&gt; collateral release.</li>
+<li><strong>Degradation tests:</strong> collateral service down -&gt; reject all orders; gateway reconnect -&gt; resend.</li>
+<li><strong>Future (when margin offered):</strong> PB simulator with accept/reject/latency injection; margin budget enforcement; VM settlement flow.</li>
 </ol>
 
 

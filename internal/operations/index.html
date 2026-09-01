@@ -1359,10 +1359,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#247-operations-model" class="md-nav__link">
+  <a href="#operations-model" class="md-nav__link">
     <span class="md-ellipsis">
       
-        24/7 operations model
+        Operations model
       
     </span>
   </a>
@@ -1594,8 +1594,8 @@
 
 <h1 id="operations-runbooks">Operations runbooks</h1>
 <p>Each runbook: trigger, owner, steps, communications, evidence.</p>
-<h2 id="247-operations-model">24/7 operations model</h2>
-<p>SWANS runs continuous trading with no open/close. Operations are organised around <strong>VM windows</strong> (00:00, 08:00, 16:00 UTC) rather than start/end of day. Automated monitoring covers unattended hours; on-call staff handle escalations.</p>
+<h2 id="operations-model">Operations model</h2>
+<p>SWANS runs 24/7 continuous trading with no open/close. Automated monitoring covers unattended hours; on-call staff handle escalations.</p>
 <table>
 <thead>
 <tr>
@@ -1606,14 +1606,9 @@
 </thead>
 <tbody>
 <tr>
-<td><strong>VM window</strong></td>
-<td>00:00, 08:00, 16:00 UTC</td>
-<td>Fix marks; compute VM per account; PB-managed: send margin schedule to PBs; full-collateral: execute VM transfers, adjust locks; publish price file; reconciliation snapshot</td>
-</tr>
-<tr>
-<td><strong>VM window failure</strong></td>
-<td>Mark or transfer not complete within 5 min of window</td>
-<td>Alert on-call; halt risk-increasing orders; complete manually; resume; journal incident</td>
+<td><strong>Marks snapshot</strong></td>
+<td>Periodic (configurable)</td>
+<td>Fix marks; publish price file; reconciliation snapshot</td>
 </tr>
 <tr>
 <td><strong>Instrument halt / resume</strong></td>
@@ -1623,27 +1618,17 @@
 <tr>
 <td><strong>Trade bust</strong></td>
 <td>Member request within 15 min or operator</td>
-<td>Review vs erroneous-trade policy; decision by two staff; <code>ExecType=H</code> with reason; PBs notified; positions reverted; fee reversal; collateral locks released; member notice</td>
+<td>Review vs erroneous-trade policy; decision by two staff; <code>ExecType=H</code> with reason; positions reverted; fee reversal; collateral locks released; member notice</td>
 </tr>
 <tr>
 <td><strong>Settlement determination</strong></td>
 <td>Source publication</td>
-<td>Officer 1 proposes with evidence hash; Officer 2 confirms; dispute window; committee if disputed; publish; PBs notified; collateral service pays out (full-collateral accounts)</td>
-</tr>
-<tr>
-<td><strong>PB adapter down</strong></td>
-<td>Notification failures or heartbeat loss</td>
-<td>Halt new orders for PB-managed accounts after 30 s; existing matched trades queued; escalate to PB; resume when link restored and queue drained; if beyond 15 min, member notice and FCA notification</td>
+<td>Officer 1 proposes with evidence hash; Officer 2 confirms; dispute window; committee if disputed; publish; collateral service distributes payout</td>
 </tr>
 <tr>
 <td><strong>Collateral service down</strong></td>
 <td>Balance update not received for 30 s</td>
-<td>Pre-trade rejects all full-collateral orders (stale balance); alert on-call; restore; recompute balances from journal; resume</td>
-</tr>
-<tr>
-<td><strong>Margin service down</strong></td>
-<td>No budget update for 30 s</td>
-<td>Pre-trade continues on fast bound with limits scaled 0.5; alert risk desk; restore; recompute; restore limits</td>
+<td>Pre-trade rejects all orders (stale balance); alert on-call; restore; recompute balances from journal; resume</td>
 </tr>
 <tr>
 <td><strong>Member disconnect storm</strong></td>
@@ -1661,11 +1646,6 @@
 <td>Declared by ops lead; FCA and members notified; resting orders cancelled; resume per DR procedure</td>
 </tr>
 <tr>
-<td><strong>Kill switch received</strong></td>
-<td>PB API</td>
-<td>Verify execution within 1 s; confirm to PB; monitor for unkill</td>
-</tr>
-<tr>
 <td><strong>Source failure at deadline</strong></td>
 <td>Settlement deadline passes without publication</td>
 <td>Apply schema fallback; officer confirmation; flag as fallback; member notice</td>
@@ -1673,7 +1653,7 @@
 <tr>
 <td><strong>Parameter change</strong></td>
 <td>Governance approval</td>
-<td>Version reference data; notify PBs/members per change-management; apply at announced time</td>
+<td>Version reference data; notify members per policy; apply at announced time</td>
 </tr>
 <tr>
 <td><strong>Maintenance / hot deploy</strong></td>
@@ -1683,7 +1663,7 @@
 </tbody>
 </table>
 <h2 id="automated-monitoring-247">Automated monitoring (24/7)</h2>
-<p>All services emit health metrics. Alerts fire to the on-call rotation via PagerDuty (or equivalent).</p>
+<p>All services emit health metrics. Alerts fire to the on-call rotation.</p>
 <table>
 <thead>
 <tr>
@@ -1709,24 +1689,9 @@
 <td>Alert; if &gt;95%, page on-call</td>
 </tr>
 <tr>
-<td>VM window completion</td>
-<td>Not done within 5 min</td>
-<td>Page on-call</td>
-</tr>
-<tr>
-<td>PB adapter heartbeat</td>
-<td>Missing for 30 s</td>
-<td>Auto-halt PB-managed orders; page on-call</td>
-</tr>
-<tr>
 <td>Collateral balance stream</td>
 <td>Stale for 30 s</td>
-<td>Auto-reject full-collateral orders; page on-call</td>
-</tr>
-<tr>
-<td>Margin budget stream</td>
-<td>Stale for 30 s</td>
-<td>Switch to fast bounds; page on-call</td>
+<td>Auto-reject orders; page on-call</td>
 </tr>
 <tr>
 <td>PostgreSQL replication lag</td>
@@ -1741,12 +1706,12 @@
 </tbody>
 </table>
 <h2 id="reconciliation">Reconciliation</h2>
-<p>Runs after each VM window (not just end of day):
-- Trade counts: engine journal vs trades service vs PB drop copy
-- Position snapshot: position service vs margin engine inputs
-- Collateral: locked amounts vs open positions; balance vs bank statement (daily)
-- Margin: recomputed from scratch vs incremental; differences flagged</p>
-<p>Incident classification: P1 (trading impacted), P2 (post-trade impacted), P3 (degraded). P1 requires FCA notification per the venue's obligations <strong>[confirm]</strong> and a written post-incident report within 5 business days.</p>
+<ul>
+<li>Trade counts: engine journal vs trades service</li>
+<li>Position snapshot: position service vs collateral locks</li>
+<li>Collateral: locked amounts vs open positions; balance vs bank statement (daily)</li>
+</ul>
+<p>Incident classification: P1 (trading impacted), P2 (post-trade impacted), P3 (degraded). P1 requires FCA notification and a written post-incident report within 5 business days.</p>
 
 
 

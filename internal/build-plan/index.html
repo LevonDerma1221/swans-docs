@@ -1499,10 +1499,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#development-epics-aligned-with-risk-engine-spec-v30" class="md-nav__link">
+  <a href="#development-epics" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Development epics (aligned with risk engine spec v3.0)
+        Development epics
       
     </span>
   </a>
@@ -1595,31 +1595,31 @@
 <tr>
 <td>M1</td>
 <td>1-6</td>
-<td><code>refdata_gen</code> + reference data service on the catalogue; trades and position services on a scripted stream; <code>libswansrisk</code> interfaces with first <code>EsMarginModel</code> (MPOR + terminal engines); margin service producing PB margin schedule and price/risk file; collateral service core (balance tracking, locks); two-engine divergence reporting</td>
-<td>Catalogue CSV; margin methodology docs; risk engine spec v3.0</td>
+<td><code>refdata_gen</code> + reference data service; trades and position services; <code>libswansrisk</code> interfaces with first model (MPOR + terminal engines in shadow mode); collateral service core (balance tracking, locks, settlement payouts); price/risk file</td>
+<td>Catalogue CSV; margin methodology docs; risk engine spec</td>
 </tr>
 <tr>
 <td>M2</td>
 <td>6-12</td>
-<td>Engine with pre-trade stage (margin budgets + balance checks); QuickFIX gateway; market data over FIX and WebSocket; PB adapter (FIX drop copy + margin delivery); collateral service (VM transfers, settlement payouts); end-to-end scripted day with PB simulator; PB API for limits/kill switch; full-collateral end-to-end flow</td>
+<td>Engine with pre-trade stage (balance checks); QuickFIX gateway; market data over FIX and WebSocket; full-collateral end-to-end flow (deposit → order → match → lock → settle → payout); REST API</td>
 <td>M1</td>
 </tr>
 <tr>
 <td>M3</td>
 <td>12-20</td>
-<td>Settlement service (four-eyes, disputes, fallback); VM window marks; VM; margin call lifecycle (full state machine); RTS 22/24 extracts; SMARTS feed; REST API; model governance registry; backtesting framework</td>
+<td>Settlement service (four-eyes, disputes, fallback); marks pipeline; RTS 22/24 extracts; SMARTS feed; model governance registry; backtesting framework</td>
 <td>M2</td>
 </tr>
 <tr>
 <td>M4</td>
-<td>post PB onboarding</td>
-<td>Real PB integration; RTS 26 timings; commercial FIX decision; LD4 deployment; DR</td>
-<td>PB agreement signed</td>
+<td>post launch</td>
+<td>Margin mode (PB integration, CCP, or alternative); VM; margin call lifecycle; real PB/CCP adapter; LD4 deployment; DR</td>
+<td>Strategic decision on how to offer margin</td>
 </tr>
 </tbody>
 </table>
-<p>M1 first: its output (margin schedule, price/risk file, backtest, two-engine comparison) is what PB meetings need.</p>
-<h2 id="development-epics-aligned-with-risk-engine-spec-v30">Development epics (aligned with risk engine spec v3.0)</h2>
+<p>M1 first: its output (risk analytics, price/risk file, backtest, two-engine comparison) demonstrates the margin engine capability.</p>
+<h2 id="development-epics">Development epics</h2>
 <table>
 <thead>
 <tr>
@@ -1630,19 +1630,19 @@
 <tbody>
 <tr>
 <td>E1 Domain model</td>
-<td>Member/account/product/trade/position/collateral schemas + migrations; account hierarchy (member → origin → account → margin account)</td>
+<td>Member/account/product/trade/position/collateral schemas + migrations</td>
 </tr>
 <tr>
 <td>E2 Connectivity</td>
-<td>FIX gateway, REST API, PB adapter, SFTP batch processor</td>
+<td>FIX gateway, REST API</td>
 </tr>
 <tr>
-<td>E3 Ledger &amp; event backbone</td>
+<td>E3 Ledger and event backbone</td>
 <td>Aeron streams, append-only journals, idempotent event processing, reconciliation</td>
 </tr>
 <tr>
 <td>E4 Fair marks</td>
-<td>Market ingestion, mark hierarchy, structural projection, mark quality, VM window snapshots</td>
+<td>Market ingestion, mark hierarchy, structural projection, mark quality</td>
 </tr>
 <tr>
 <td>E5 Quant core</td>
@@ -1650,15 +1650,15 @@
 </tr>
 <tr>
 <td>E6 Margin policy</td>
-<td>IM components, event ramp, netting layers, margin call lifecycle, limits, hypothetical margin</td>
+<td>IM components, event ramp, netting layers, limits, hypothetical margin (all shadow mode at launch)</td>
 </tr>
 <tr>
-<td>E7 Collateral &amp; VM</td>
-<td>Collateral service (locks, transfers, payouts), eligibility/haircuts, balance checks, VM settlement</td>
+<td>E7 Collateral</td>
+<td>Collateral service (locks, settlement payouts), balance checks, deposits, withdrawals</td>
 </tr>
 <tr>
 <td>E8 Reporting</td>
-<td>Member reports, PB margin schedules, price/risk files, regulatory extracts</td>
+<td>Member reports, price/risk files, regulatory extracts</td>
 </tr>
 <tr>
 <td>E9 Governance</td>
@@ -1682,8 +1682,8 @@
 <tbody>
 <tr>
 <td>M5</td>
-<td>CCP adapter; CCP parameter file; default fund integration; auction tooling</td>
-<td>CCP partnership secured</td>
+<td>Margin mode: PB adapter or CCP adapter or alternative (blockchain, SWANS-managed margin); VM; margin calls</td>
+<td>Strategic decision + partnership/regulatory approval</td>
 </tr>
 <tr>
 <td>M6</td>
@@ -1692,12 +1692,12 @@
 </tr>
 <tr>
 <td>M7</td>
-<td>Calibrated liquidity add-ons (phase 2); broader portfolio-margin offsets; live-data close-out calibration</td>
+<td>Calibrated liquidity add-ons; broader portfolio-margin offsets; live-data close-out calibration</td>
 <td>Data sufficiency + independent validation</td>
 </tr>
 <tr>
 <td>M8</td>
-<td>Partner-DCO deployment; multi-jurisdiction reporting profiles</td>
+<td>Multi-jurisdiction; retail access if regulatory path found</td>
 <td>Governance/regulatory approval</td>
 </tr>
 </tbody>

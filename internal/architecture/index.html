@@ -1659,7 +1659,7 @@
 
 
 <h1 id="system-architecture-internal">System architecture (internal)</h1>
-<p><strong>Version 3.0.</strong> Full-collateral as day-one default + optional PB-managed mode. 24/7 continuous trading. CCP clearing is a future upgrade path.</p>
+<p><strong>Version 4.0.</strong> Full collateral at launch. Margin (via PB, CCP, or alternative) is a future upgrade. 24/7 continuous trading.</p>
 <h2 id="build-buy">Build / buy</h2>
 <table>
 <thead>
@@ -1673,12 +1673,7 @@
 <tr>
 <td>Reference data, contract engine, trades, positions, marks, risk engine, margin and fees, settlement, pre-trade risk, collateral service</td>
 <td><strong>Build</strong></td>
-<td>Core product; what PBs and members evaluate</td>
-</tr>
-<tr>
-<td>PB adapter</td>
-<td><strong>Build</strong></td>
-<td>FIX drop copy + margin schedule delivery; thin layer</td>
+<td>Core product</td>
 </tr>
 <tr>
 <td>Matching engine, FIX gateway, market data publisher</td>
@@ -1704,20 +1699,17 @@
 </table>
 <p>Full diagrams: <a href="../../diagrams/">End-to-end views</a>.</p>
 <h2 id="services">Services</h2>
-<div class="highlight"><pre><span></span><code> Members ──FIX──▶ Gateway ──▶ [Engine shard: PreTrade → Matching] ──┬──▶ MarketData ──▶ Members
-                                          ▲                          ├──▶ Trades ──▶ PB adapter
-                                          │ margin budgets           │        │
-                                          │ balance snapshots        │   Collateral service
-                                     MarginService ◀── RiskEngine ◀── Positions ◀────┘
-                                          │               ▲
-          PB files, margin schedule ◀─────┘        ReferenceData ──▶ all
-                                                          ▲
-                                                  Settlement ──▶ Trades / Positions / PB adapter / Collateral
-                                                  Reporting &amp; surveillance extracts ◀── all
-                                                  PB API ──▶ PreTrade limits
-                                                  REST/WS API ──▶ read models
+<div class="highlight"><pre><span></span><code>Members ──FIX──▶ Gateway ──▶ [Engine: PreTrade → Matching] ──┬──▶ MarketData ──▶ Members
+                                       ▲                       ├──▶ Trades
+                                       │ balance snapshots     │
+                                  Collateral service ◀─────────┘
+                                  RiskEngine (shadow mode) ◀── Positions
+                                  ReferenceData ──▶ all
+                                  Settlement ──▶ Trades / Positions / Collateral
+                                  Reporting &amp; surveillance ◀── all
+                                  REST/WS API ──▶ read models
 </code></pre></div>
-<p>Pre-trade risk runs as a <strong>stage inside the engine shard process</strong> (no IPC hop), as a separate module. It checks both PB limits/margin budget (PB-managed accounts) and available balance (full-collateral accounts).</p>
+<p>Pre-trade risk runs as a <strong>stage inside the engine shard process</strong> (no IPC hop). At launch it checks available balance (full collateral). Future: PB limits and margin budget when margin is offered.</p>
 <h2 id="collateral-service">Collateral service</h2>
 <p>Manages member balances. See <a href="../services/collateral/">Collateral service</a>.</p>
 <ul>
@@ -1729,33 +1721,32 @@
 </ul>
 <h2 id="clearing-layer">Clearing layer</h2>
 <p><strong>Full collateral (launch).</strong> The collateral service handles everything: balance checks, locks, settlement payouts. No external dependency. No VM — locks stay fixed until settlement.</p>
-<p><strong>Future margin mode.</strong> How to offer capital efficiency (margin/leverage) is an open design question. A PB adapter or CCP adapter could be added without changing the core system.</p>
+<p><strong>Future margin mode.</strong> How to offer capital efficiency (margin/leverage) is an open design question — PB integration, CCP, blockchain, or SWANS-managed margin. A PB/CCP adapter could be added without changing the core system.</p>
 <h2 id="trading-hours">Trading hours</h2>
 <p><strong>24/7 continuous trading.</strong> The matching engine runs without interruption. There is no opening or closing.</p>
 <ul>
 <li><strong>Settlement determination:</strong> happens when the source publishes, regardless of time. Two-officer process operates during business hours; automated sources can trigger at any time.</li>
 <li><strong>Maintenance:</strong> rolling hot-deploy; no planned downtime windows. If maintenance requires a halt, 24-hour notice to members.</li>
-<li><strong>Reference price:</strong> filtered fair mark (not "daily settle").</li>
+<li><strong>Reference price:</strong> filtered fair mark.</li>
 </ul>
 <h2 id="deployment">Deployment</h2>
 <ul>
-<li><strong>Production:</strong> LD4 (Equinix Slough). Two racks, dedicated switches, member cross-connects. Engine and gateway hosts pinned, isolated cores, kernel bypass optional later.</li>
+<li><strong>Production:</strong> LD4 (Equinix Slough). Two racks, dedicated switches, member cross-connects.</li>
 <li><strong>DR:</strong> second site, warm standby, journal shipping; RTO 2 hours <strong>[confirm RTS 7]</strong>.</li>
 <li><strong>Prototype:</strong> one VM per service or Docker Compose on a single host.</li>
 </ul>
 <h2 id="time">Time</h2>
-<p><code>int64_t</code> nanoseconds since Unix epoch, UTC, everywhere. Production clocks disciplined by PTP; RTS 25 traceability to UTC. Prototype uses NTP.</p>
+<p><code>int64_t</code> nanoseconds since Unix epoch, UTC, everywhere. Production clocks disciplined by PTP; RTS 25 traceability to UTC.</p>
 <h2 id="contract-economics">Contract economics</h2>
 <ul>
-<li>Price in [0.005, 0.995], ticks of 0.005, integer <code>price_ticks in [1, 199]</code>; payout 100 units; minimum notional $100; currencies GBP/USD/EUR, one per contract.</li>
-<li><strong>PB-managed accounts:</strong> futures-style margining. No premium at trade time; VM at each window; IM from the margin service.</li>
-<li><strong>Full-collateral accounts:</strong> max loss locked at trade time. VM transfers at each window. No margin engine dependency for pre-trade.</li>
+<li>Price in [0.005, 0.995], ticks of 0.005; payout 100 units; currencies GBP/USD/EUR.</li>
+<li>Full collateral: max loss locked at trade time. No margin engine dependency for pre-trade.</li>
 <li>One book per contract in yes-space.</li>
-<li><strong>Packages are separate products</strong> with their own bounded payoff. Leg decomposition exists only inside SWANS's risk and position views.</li>
-<li><strong>Payout structure is not final.</strong> The binary yes/no format, payout amount and settlement kind may evolve. The <code>ContractSpec</code> and margin engine treat the payoff as a pluggable function. See <a href="../open-decisions/">Open decisions #2</a>.</li>
+<li>Packages are separate products with their own bounded payoff.</li>
+<li><strong>Payout structure is not final.</strong> See <a href="../open-decisions/">Open decisions #2</a>.</li>
 </ul>
 <h2 id="non-goals-for-phase-1">Non-goals for phase 1</h2>
-<p>Auctions, iceberg orders, HA failover, hardware timestamps, multicast market data, real ARM submission, CCP adapter.</p>
+<p>Auctions, iceberg orders, HA failover, hardware timestamps, multicast market data, real ARM submission, PB adapter, CCP adapter, margin mode.</p>
 
 
 
