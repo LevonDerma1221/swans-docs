@@ -1,31 +1,48 @@
-# Open decisions
+# What we still need to decide
 
-| # | Decision | Needed by |
+## Before we start building
+
+| # | Question | When |
 |---|---|---|
-| 1 | MTF (CLOB) vs OTF (RFQ with discretion) as primary protocol | Before M2 |
-| 2 | Contract payout structure: binary-only at launch, or also measured/tiered? Payoff function pluggability in ContractSpec | M1 |
-| 3 | Who sets reference prices at each VM window: SWANS only, or PB can override? | Term sheet |
-| 4 | CFI/FISN codes and ISIN allocation route | End M1 |
-| 5 | Package types to list and their leg-allocation rule for leg views | M1 |
-| 6 | RTS 25 precision class, RTS 26 thresholds, RTS 24 retention | M2 |
-| 7 | Transparency mode per instrument under the waiver regime | M3 |
-| 8 | Does SWANS transaction-report on behalf of members | M3 |
-| 9 | Production matching and FIX engine: in-house vs Eqlipse/commercial | After M2 measurements |
-| 10 | Fee schedule parameters | M2 |
-| 11 | Offset trigger thresholds per schema (netting layer 3 scope) | Before first PB meeting |
-| 12 | BMR: registered administrator vs third-party determinations only | Before PB term sheet |
-| 13 | Capacity targets and failover design (assumptions in capacity.md) | Before M2 |
-| 14 | Margin compute budget: scenario counts, run times, reduced set for pre-trade incremental | Before M2 |
-| 15 | Latent loading file format and production parameter tables for the PB parameter file | M1 |
-| 16 | Fee anti-gaming aggregation key (affiliate group definition) and window | M2 |
-| 17 | Opening/closing auction: whether to run one, given V6 puts auction prints at the top of the mark hierarchy (24/7 model may not need one) | Before M2 |
-| 18 | Two-engine divergence threshold for model-risk add-on (A_model) | M1 |
-| 19 | MPOR base horizon per product class and regulatory mapping (CFTC §39.13 vs FCA/EMIR) | M1 |
-| 20 | Cross-margin group scope for phase 1: same-contract + structural only, or first common-driver group? | Before M2 |
-| 21 | Collateral eligibility policy: cash-only at launch, or also securities with haircuts? | M2 |
-| 22 | Margin call due-time profile: how long before escalation (PB-managed vs full-collateral)? | M2 |
-| 23 | Technology stack for clearing-layer services: Aeron/SBE (current) vs Kafka/Protobuf (risk engine spec v3.0 recommendation) | Before M2 |
-| 24 | Anti-procyclicality buffer methodology and parameters | M1 |
-| 25 | Legal authority map: SWANS as venue+calc agent, or future DCO registration path? | Strategic |
-| 26 | Retail access: under what regulatory structure could retail clients access the venue? | Strategic |
-| 27 | How to offer margin: SWANS-managed, third-party, PB, or other structure? | Strategic |
+| 2 | Do we launch with binary contracts only, or also measured/tiered? | Phase 1 |
+| 4 | How do we get ISIN codes? CFI/FISN allocation route? | Phase 1 |
+| 5 | Which package types do we list and how do we allocate legs? | Phase 1 |
+| 15 | What format for the latent loading file and parameter tables? | Phase 1 |
+| 18 | What divergence threshold triggers a model-risk review between the two engines? | Phase 1 |
+| 19 | What close-out horizon per product class? (CFTC vs FCA/EMIR rules) | Phase 1 |
+| 24 | How do we handle anti-procyclicality in the margin buffer? | Phase 1 |
+
+## Before trading goes live
+
+| # | Question | When |
+|---|---|---|
+| 1 | MTF (central order book) vs OTF (RFQ with discretion) — which model? | Phase 2 |
+| 6 | Clock precision, trade reporting thresholds, record retention periods (RTS 24/25/26) | Phase 2 |
+| 9 | Build matching engine in-house or buy commercial? | After Phase 2 measurements |
+| 10 | Fee schedule — what do we charge? | Phase 2 |
+| 13 | Performance targets and failover design | Phase 2 |
+| 14 | How many scenarios for margin? Run time budget? | Phase 2 |
+| 16 | How do we define affiliate groups for fee anti-gaming? | Phase 2 |
+| 17 | Do we need opening/closing auctions given 24/7 trading? | Phase 2 |
+| 20 | Cross-margin scope: same-contract only, or broader? | Phase 2 |
+| 21 | Cash-only collateral at launch, or also securities? | Phase 2 |
+| 22 | How long before a margin call escalates? | Phase 2 |
+| 23 | Tech stack: Aeron/SBE or Kafka/Protobuf? | Phase 2 |
+
+## After launch
+
+| # | Question | When |
+|---|---|---|
+| 7 | Transparency mode per instrument (pre/post-trade waivers) | Phase 3 |
+| 8 | Does SWANS transaction-report on behalf of members? | Phase 3 |
+
+## Strategic
+
+| # | Question | When |
+|---|---|---|
+| 3 | Who sets reference prices — SWANS only, or can PB override? | When margin is offered |
+| 11 | Netting offset thresholds per schema | Before first PB meeting |
+| 12 | Do we need to be a registered benchmark administrator? | Before PB term sheet |
+| 25 | Legal structure: venue + calculation agent, or pursue clearing licence? | Strategic |
+| 26 | Can retail clients access the venue? Under what structure? | Strategic |
+| 27 | How do we offer margin: PB, CCP, blockchain, or something else? | Strategic |

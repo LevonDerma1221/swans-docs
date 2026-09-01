@@ -1,34 +1,55 @@
-# Build plan
+# Roadmap
 
-| Milestone | Weeks | Deliverable | Depends on |
-|---|---|---|---|
-| M1 | 1-6 | `refdata_gen` + reference data service; trades and position services; `libswansrisk` interfaces with first model (MPOR + terminal engines in shadow mode); collateral service core (balance tracking, locks, settlement payouts); price/risk file | Catalogue CSV; margin methodology docs; risk engine spec |
-| M2 | 6-12 | Engine with pre-trade stage (balance checks); QuickFIX gateway; market data over FIX and WebSocket; full-collateral end-to-end flow (deposit → order → match → lock → settle → payout); REST API | M1 |
-| M3 | 12-20 | Settlement service (four-eyes, disputes, fallback); marks pipeline; RTS 22/24 extracts; SMARTS feed; model governance registry; backtesting framework | M2 |
-| M4 | post launch | Margin mode (PB integration, CCP, or alternative); VM; margin call lifecycle; real PB/CCP adapter; LD4 deployment; DR | Strategic decision on how to offer margin |
+## What we're building and when
 
-M1 first: its output (risk analytics, price/risk file, backtest, two-engine comparison) demonstrates the margin engine capability.
+### Phase 1 — Foundations (weeks 1–6)
+- Reference data service and contract catalogue
+- Trades and position services
+- Collateral service (balance tracking, locks, settlement payouts)
+- Risk library: first model with both engines running in shadow mode
+- Price/risk file output
 
-## Development epics
+This phase proves the margin engine works — even though we launch on full collateral, we need the analytics running to demonstrate capability.
 
-| Epic | Key outputs |
+### Phase 2 — Trading (weeks 6–12)
+- Matching engine with pre-trade balance checks
+- FIX gateway (members can connect and trade)
+- Market data over FIX and WebSocket
+- REST API
+- Full end-to-end flow: deposit → order → match → lock → settle → payout
+
+### Phase 3 — Production readiness (weeks 12–20)
+- Settlement service (two-officer process, disputes, fallback)
+- Marks pipeline
+- Regulatory extracts (RTS 22/24)
+- Surveillance feed (SMARTS)
+- Model governance and backtesting
+
+### After launch
+- Margin mode (PB, CCP, blockchain, or alternative) — depends on strategic decision
+- Auctions, iceberg orders, multicast market data
+- Broader portfolio-margin offsets
+- Multi-jurisdiction; retail access if regulatory path found
+
+## Work streams
+
+| Stream | What it delivers |
 |---|---|
-| E1 Domain model | Member/account/product/trade/position/collateral schemas + migrations |
-| E2 Connectivity | FIX gateway, REST API |
-| E3 Ledger and event backbone | Aeron streams, append-only journals, idempotent event processing, reconciliation |
-| E4 Fair marks | Market ingestion, mark hierarchy, structural projection, mark quality |
-| E5 Quant core | Scenario API, MPOR simulator, terminal engine, structural state engine, VaR/ES/stress, two-engine consistency contract |
-| E6 Margin policy | IM components, event ramp, netting layers, limits, hypothetical margin (all shadow mode at launch) |
-| E7 Collateral | Collateral service (locks, settlement payouts), balance checks, deposits, withdrawals |
-| E8 Reporting | Member reports, price/risk files, regulatory extracts |
-| E9 Governance | Model registry, audit/lineage, backtesting, overrides, two-engine divergence monitoring |
-| E10 Production engineering | HA, security, observability, DR, performance certification |
+| Domain model | Member, account, product, trade, position, collateral schemas |
+| Connectivity | FIX gateway, REST API |
+| Event backbone | Aeron streams, journals, idempotent processing |
+| Fair marks | Market ingestion, mark hierarchy, quality checks |
+| Quant core | Scenario API, MPOR simulator, terminal engine, VaR/ES/stress |
+| Margin policy | IM components, event ramp, netting layers (all shadow mode at launch) |
+| Collateral | Locks, settlement payouts, balance checks, deposits, withdrawals |
+| Reporting | Member reports, price/risk files, regulatory extracts |
+| Governance | Model registry, audit, backtesting, divergence monitoring |
 
-## Future milestones (post-launch)
+## Testing
 
-| Milestone | Deliverable | Trigger |
-|---|---|---|
-| M5 | Margin mode: PB adapter or CCP adapter or alternative (blockchain, SWANS-managed margin); VM; margin calls | Strategic decision + partnership/regulatory approval |
-| M6 | Auctions, iceberg orders, multicast market data, HA failover | Volume/demand justifies |
-| M7 | Calibrated liquidity add-ons; broader portfolio-margin offsets; live-data close-out calibration | Data sufficiency + independent validation |
-| M8 | Multi-jurisdiction; retail access if regulatory path found | Governance/regulatory approval |
+1. **Order book tests** — random order streams; verify price-time priority, quantity conservation, replay determinism
+2. **FIX conformance** — scripted test suite run against the gateway
+3. **Risk golden tests** — Python reference produces golden outputs; C++ must match
+4. **Backtest harness** — margin model validated against synthetic price paths
+5. **End-to-end flow** — order → fill → collateral lock → settlement → payout
+6. **Failure tests** — collateral service down → all orders rejected; gateway reconnect → resend
