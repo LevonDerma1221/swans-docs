@@ -31,7 +31,7 @@ All production models are registered. Policy parameters are versioned separately
 
 ### Two-engine governance
 
-The MPOR engine is the clearing-IM authority. The terminal/challenger engine results are compared quantitatively only under aligned horizon/measure/output; otherwise they are complementary diagnostics. The engine never blends MPOR and terminal results into a single figure without an approved, versioned reconciliation rule. Persistent or portfolio-wide divergence is a model-governance trigger.
+The MPOR engine is the clearing-IM authority. The terminal/challenger engine is authoritative for terminal-outcome diagnostics, structural validation and designated challenger/stress outputs. Cross-engine divergence is a model-risk diagnostic only when outputs are deliberately aligned on horizon, measure, portfolio snapshot and output definition (the "comparable-run rule"). A numerical difference between unaligned outputs (e.g. 5-day close-out loss vs to-resolution terminal loss) is expected behavior, not a defect. The engine never blends MPOR and terminal results into a single figure without an approved, versioned reconciliation rule. Persistent divergence under aligned comparison is a model-governance trigger.
 
 ### Backtesting and validation
 

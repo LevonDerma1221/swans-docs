@@ -27,7 +27,7 @@ Per account, per run (at each VM window 00:00/08:00/16:00 UTC; intraday on trigg
 6. Add-ons: liquidity (phase 1 policy), concentration (`ζ·L_side·((c−c̄)⁺/c̄)²`), oracle, model risk, event ramp (`λ_event = max(λ_cal, λ_haz)`), APC.
 7. `IM = min(L_gross, IM_core + Σ A)`; then `IM_event` blend.
 8. Market-maker relief flags evaluated against LP criteria; withdrawn automatically on breach.
-9. Two-engine comparison: terminal engine runs in parallel; divergence `D_a` recorded.
+9. Two-engine comparison: terminal engine runs in parallel; divergence `D_a,χ` recorded only under aligned comparison configurations.
 10. Outputs with full attribution.
 
 ## IM formula (from V6, formalized)
@@ -75,14 +75,22 @@ VM_due = [-ΔV_a]⁺
 VM_receivable = [ΔV_a]⁺
 ```
 
-## Collateral equity and margin call (full-collateral mode)
+## Creditable resources, requirement and margin call (single-ledger)
+
+The collateral and settlement services maintain a **single authoritative resource ledger**. Settled VM receivables and other finalized cash movements update the creditable balance; they are not added again as a separate resource term (no double counting). Unsettled receivables receive zero credit unless an explicit, legally approved provisional-credit policy applies.
 
 ```
-E_a = C_eligible + VM_settled - Fees - Withdrawals
-R_a = IM_event + VM_due + Buffer
-MC_a = [R_a - E_a]⁺         (margin call amount)
-Excess_a = [E_a - R_a]⁺     (withdrawable subject to policy)
+C_credit = haircut-adjusted value of all resources creditable to the margin account
+           (confirmed collateral + settled VM + finalized cash, each entered exactly once)
+D_other  = accrued fees/debits not yet reflected in C_credit
+
+E_a = C_credit - D_other                      (available account equity)
+R_a = IM_event + VM_due + Buffer               (required resources)
+MC_a = [R_a - E_a]⁺                           (margin call amount)
+Excess_a = [E_a - R_a]⁺                       (withdrawable subject to policy)
 ```
+
+**Ledger invariant.** Every cash balance, collateral lot and finalized VM movement has one resource-ledger identity and can contribute to `C_credit` at most once. A completed withdrawal or fee posting that has already reduced the balance is not subtracted again in the margin formula.
 
 A positive `MC_a` creates or updates a margin call (see margin call lifecycle below).
 
@@ -102,15 +110,21 @@ A positive `MC_a` creates or updates a margin call (see margin call lifecycle be
 
 Each transition records actor/system, timestamp, reason code, evidence and balance delta.
 
+## Gross customer margin
+
+Customer-origin IM is calculated gross: the sum of individual-customer IM requirements, with no inter-customer netting. Each separate-account customer is represented as its own individual-customer margin unit. House accounts may be margined on a net basis where permitted. The position ledger retains the customer identifier and gross EOD positions required to reproduce the calculation.
+
 ## Netting layers (correctly named per CFTC terminology)
 
 | Layer | Mechanism | Status |
 |---|---|---|
-| 1. Same-contract netting | Aggregate trades into `Q_ak` within one margin account | Deterministic bookkeeping |
+| 1. Same-contract netting | Aggregate trades into `Q_ak` within one legal margin unit. For customer-origin calculations, aggregation is performed per individual customer before gross summation. | Deterministic bookkeeping |
 | 2. Structural family netting | Evaluate mutually exclusive, nested or linked contracts over admissible terminal states `Y_g` | Exact payoff logic |
-| 3. Portfolio/spread margining (§39.13(g)(4)) | Jointly simulate related positions in approved group; common-factor diversification in portfolio loss distribution | Requires conceptual basis + statistical evidence |
+| 3. Spread/portfolio margining (§39.13(g)(4)) | Jointly simulate related positions in approved portfolio-margin group `G_r`; approved diversification in portfolio loss distribution | Requires conceptual basis + statistical evidence |
 
-Cross-margining (§39.13(i)) is reserved for inter-organization programs and follows a separate approval path. Each cross-margin policy record contains: group ID, covered products/families, conceptual basis, dependency-model version, validation evidence/date, offset caps, effective dates and approval owner.
+The conceptual basis for a portfolio-margin offset may include complement/substitute relationships, input relationships, shared inputs or common external drivers — it is not limited to a named global factor. Each `portfolio_margin_policy` record MUST contain: group ID, covered products/families, conceptual basis, dependency-model version, validation evidence/date, offset caps, effective dates and approval owner.
+
+**Inter-DCO cross-margining** (§39.13(i)) is a separate architecture and regulatory workstream, represented by a distinct `cross_margin_program` entity. It MUST NOT be conflated in code or reporting with the internal spread/portfolio-margin policy above.
 
 ## Outputs
 

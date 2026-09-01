@@ -30,7 +30,7 @@ flowchart LR
 
 ## Methodology
 
-**Two-engine architecture.** The risk engine runs two engines on every official risk run. The MPOR engine (close-out loss simulation) is authoritative for clearing IM. A terminal factor/copula engine runs as a standing challenger for diagnostics, structural validation and stress. Their divergence is a model-risk signal, not a blending input.
+**Two-engine architecture.** The risk engine runs two engines on every official risk run. The MPOR engine (close-out loss simulation) is authoritative for clearing IM. A terminal factor/copula engine runs as a standing challenger for diagnostics, structural validation and stress. Cross-engine divergence is meaningful only when the two outputs are deliberately aligned on horizon, measure and output definition; a difference between a 5-day close-out loss and a to-resolution terminal loss is expected, not a defect.
 
 **Three layers, kept separate.** Structural maximum loss (horizon-free, exact over admissible family states); terminal outcome VaR/ES (horizon-free diagnostic); and the production margin: close-out loss over a margin period of risk (MPOR).
 
@@ -49,17 +49,19 @@ IM      = min( L_gross, IM_core + A_liq + A_conc + A_oracle + A_model + A_event 
 
 **Jump-to-resolution (sign-sensitive).** Long YES is hurt by a NO resolution (loss `Q·X`); short YES by a YES resolution (loss `|Q|·(1−X)`). Resolution intensities `Λ¹, Λ⁰` start as policy hazards by category and calendar state and move to calibrated survival models as data accrues.
 
-**Add-ons.** Liquidity: phase 1 is policy-based (position beyond conservatively executable depth is charged a stressed haircut); phase 2 calibrates to realised close-out cost. Concentration: `ζ · L_side · ((c − c̄)⁺ / c̄)²`, convex above a share-of-open-interest threshold. Model risk: a buffer scaled to IM_core or to family gross loss for new families, including two-engine divergence above threshold. Anti-procyclicality: pre-funds part of the gap between stressed and current margin. Oracle: settlement-delay and dispute risk.
+**Add-ons.** Liquidity: phase 1 is policy-based (position beyond conservatively executable depth is charged a stressed haircut); phase 2 calibrates to realised close-out cost. Concentration: `ζ · L_side · ((c − c̄)⁺ / c̄)²`, convex above a share-of-open-interest threshold. Model risk: a buffer scaled to IM_core or to family gross loss for new families, including aligned two-engine divergence above threshold. Anti-procyclicality: pre-funds part of the gap between stressed and current margin. Oracle: settlement-delay and dispute risk.
 
 **Market-maker relief.** Shorter base MPOR or lower liquidity add-on only for designated liquidity providers meeting objective criteria (quote uptime, spread, depth, inventory reporting, VM capability, pre-funded buffer, default drills, no surveillance breaches); withdrawn automatically when criteria fail, one-sided flow dominates, the event ramp activates, concentration thresholds are breached, or VM is late.
 
+**Gross customer margin.** Customer-origin IM is calculated as the gross sum of individual-customer IM requirements, with no inter-customer netting. House accounts may be margined net where permitted.
+
 **Cross-contract netting, staged.** Three layers, correctly named per CFTC terminology:
 
-1. **Same-contract netting:** aggregate trades into `Q_ak` within one margin account (deterministic bookkeeping).
+1. **Same-contract netting:** aggregate trades into `Q_ak` within one legal margin unit (deterministic bookkeeping). For customer-origin calculations, aggregation is per individual customer before gross summation.
 2. **Structural family netting:** mutually exclusive, nested and linked contracts evaluated over admissible terminal states (exact payoff logic).
-3. **Portfolio/spread margining (§39.13(g)(4)):** jointly simulate related positions in approved groups; common-factor diversification in the portfolio loss distribution. Requires conceptual basis + statistical evidence.
+3. **Spread/portfolio margining (§39.13(g)(4)):** jointly simulate related positions in approved groups; diversification in the portfolio loss distribution. Conceptual basis may include complement/substitute relationships, shared inputs or common external drivers — not limited to a named global factor.
 
-Cross-margining (§39.13(i)) is reserved for inter-organization programs and follows a separate approval path.
+Inter-DCO cross-margining (§39.13(i)) is a separate architecture and regulatory workstream, not the in-house mechanism.
 
 ## Launch posture
 

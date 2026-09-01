@@ -30,15 +30,22 @@ The library implements two risk engines that share the same factor state and ins
 | **MPOR engine** | Simulates portfolio close-out loss over the margin period of risk `[t, t+h]` | Authoritative for clearing IM (VaR/ES) |
 | **Terminal engine** | Draws terminal joint law of factors through copula; evaluates to-resolution loss | Challenger/diagnostics, stress, structural validation |
 
-**Shared-state invariant.** Both engines MUST consume the same instantiation of `Z = (F^G, F^g, ε)` and the same instrument-to-value maps `V(t, Z)`. They differ only in how they use Z — the MPOR engine evolves factors over the close-out interval; the terminal engine draws their terminal joint law. A run that sources the two engines from different factor states is rejected.
-
-**Cross-engine divergence.** On every official run, the engine computes both readings and records divergence per account:
+**Common economic-state contract.** Both engines MUST use the same versioned economic factor taxonomy, factor identifiers, calibration snapshot for shared drivers, dependency-model metadata and instrument-to-value mappings wherever the same economic driver is represented. They need not use identical state vectors or the same factor realization. The MPOR engine may augment shared state with path variables (stochastic volatility, resolution intensity, liquidity, operational state); the terminal engine may use terminal-specific latent variables and copula states:
 
 ```
-D_a = |R_MPOR_a - R_terminal_a| / max(R_MPOR_a, R_terminal_a, ε)
+S_MPOR    = (S_shared, U_path)
+S_terminal = (S_shared, U_terminal)
 ```
 
-`D_a` above a governance threshold routes to the risk desk and contributes to `A_model`. Persistent divergence is a model-governance trigger.
+A run is rejected only for a semantic/version mismatch in the shared state contract, not because the two engines have different dimensions or horizons.
+
+**Cross-engine divergence (comparable-run rule).** Divergence is a model-risk diagnostic only when the two outputs have been deliberately aligned on (i) risk horizon, (ii) probability/risk measure, (iii) portfolio and mark snapshot, and (iv) risk statistic definition. For an approved comparison configuration `χ`:
+
+```
+D_a,χ = |R_MPOR_a,χ - R_terminal_a,χ| / max(R_MPOR_a,χ, R_terminal_a,χ, ε)
+```
+
+A numerical difference between unaligned outputs (e.g. 5-day close-out loss vs to-resolution terminal loss) is expected behavior, not a defect. `D_a,χ` above a governance threshold routes to the risk desk and contributes to `A_model`. Persistent divergence is a model-governance trigger.
 
 ## Core interfaces
 
@@ -108,7 +115,9 @@ Hierarchical latent model for event contract k:
 Z_k = a_k + B^G_k · F^G + B^g(k)_k · F^g(k) + w_k · ε_k
 ```
 
-**Factor identification rule.** A factor is admitted to the global tier `F^G` only if it is jointly identifiable across families from instruments that several families share (e.g. a rates factor appears in bonds, rate options and macro contracts). Family-local factors are identified only within their own family. Global factors are pinned by liquid traditional instruments; for an event contract only the loadings `B^G_k` must be estimated.
+**Factor identification rule.** A global factor has a stable economic interpretation across multiple product families and can be anchored by observable data across those families. Liquid traditional instruments may materially improve estimation of the factor state, covariance and historical dynamics, but they do not determine an event contract's loading `B^G_k` automatically. Event-contract loadings and family mappings remain separate calibration objects, estimated from event-market data, structural relationships, proxies and/or governed priors. A family-local factor is used where the relevant driver is economically specific to that family.
+
+The conceptual basis for a portfolio-margin offset is broader than a named global factor. It may arise because products are complements or substitutes, one product is a material input to another, they share a material input, or they are influenced by common external factors — provided the relationship is supported by reliable risk evidence and governance.
 
 ### Simulation requirements
 

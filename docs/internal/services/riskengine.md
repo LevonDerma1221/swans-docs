@@ -16,7 +16,7 @@ The risk engine service runs both engines on every official risk run:
 | **MPOR engine** | Close-out loss over `[t, t+h_a]` — VaR, ES, jump, add-ons | Authoritative for clearing IM |
 | **Terminal engine** | Terminal-outcome tail loss through factor copula | Challenger, diagnostics, structural validation |
 
-Both engines consume the same factor state (shared-state invariant). Their divergence `D_a` is recorded per account and fed into the model-risk add-on when above threshold. See [Core analytics library](../risk-library.md) for the consistency contract.
+Both engines consume the same economic factor taxonomy, calibration snapshot and instrument-to-value mappings (common economic-state contract), but may carry different path-specific or terminal-specific state variables. Their divergence `D_a,χ` is recorded per account under aligned comparison configurations and fed into the model-risk add-on when above threshold. See [Core analytics library](../risk-library.md) for the consistency contract.
 
 ## Recalculation triggers
 
@@ -50,5 +50,5 @@ Thresholds are governance variables. The engine supports Normal → Watch → Ti
 |---|---|---|
 | `{account: IM, fast_bound, version, ts}` | Engine pre-trade stage | Every run and on fill |
 | Margin result with full attribution | Margin service | Every run |
-| Two-engine divergence `D_a` | Risk desk, model governance | Every official run |
+| Two-engine divergence `D_a,χ` (aligned comparisons only) | Risk desk, model governance | Every official run |
 | Stress-resource `ρ_a` and top scenarios | Risk desk | Every official run |
