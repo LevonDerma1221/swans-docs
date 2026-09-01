@@ -1,6 +1,4 @@
-# End-to-end views
-
-All diagrams are Mermaid; GitHub renders them natively and the MkDocs site renders them with the mermaid2 plugin.
+# Diagrams
 
 ## 1. Whole venue
 

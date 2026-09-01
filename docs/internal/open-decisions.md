@@ -1,4 +1,4 @@
-# What we still need to decide
+# Open questions
 
 ## Before we start building
 

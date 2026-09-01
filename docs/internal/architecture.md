@@ -1,4 +1,4 @@
-# System architecture (internal)
+# Architecture
 
 **Version 4.0.** Full collateral at launch. Margin (via PB, CCP, or alternative) is a future upgrade. 24/7 continuous trading.
 

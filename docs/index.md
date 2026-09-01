@@ -1,4 +1,4 @@
-# SWANS Event Exchange — Technical Architecture
+# Overview
 
 SWANS is a trading venue for standardised, cash-settled event contracts on corporate and macro catalysts. This document is the **working technical specification** — the team reviews and iterates on it before we build.
 

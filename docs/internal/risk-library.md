@@ -1,4 +1,4 @@
-# Core analytics library (`libswansrisk`)
+# Risk library
 
 One library; the venue services, margin engine and risk engine call it. No service dependencies. Numerics Eigen 3.4; RNG PCG64; no exceptions in hot paths. Production core in C++20; calibration and research in Python.
 

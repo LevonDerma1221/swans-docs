@@ -1,4 +1,4 @@
-# Messaging and journals
+# Messaging
 
 ## Transport
 - **Aeron** (UDP unicast/multicast; IPC on one host) for the order path and market data.
