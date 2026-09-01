@@ -1,23 +1,10 @@
-# Margin and collateral
+# Margin
 
-## Collateral modes
+## Launch: full collateral, margin in shadow mode
 
-SWANS supports two modes per account:
+At launch, full collateral means max loss is locked per trade — no margin engine dependency for pre-trade. The margin engine runs in **shadow mode**: computing risk analytics, collecting data, and validating models, but not driving any collateral decisions.
 
-| Mode | How margin works | Who holds cash |
-|---|---|---|
-| **PB-managed** | Futures-style margining. Nothing paid at trade time; VM settled at each window; IM from the margin engine. SWANS is calculation agent under the CSA. | Prime broker |
-| **Full collateral** | Max loss locked at trade time. VM transfers at each window. No margin engine dependency for pre-trade. | SWANS (via custodian) |
-
-```mermaid
-flowchart LR
-  E[Margin engine] -->|schedule| PB[Prime broker]
-  E -->|budget| PT[Pre-trade risk]
-  E -->|locks| COL[Collateral service]
-  E -->|price file| PB
-  PB --> F[Fund]
-  COL -->|balance check| PT
-```
+When SWANS offers margin (capital efficiency), the margin engine becomes production. How that works is an open design question — see [Clearing](clearing.md).
 
 ## Methodology overview
 
@@ -53,17 +40,7 @@ Inter-DCO cross-margining is a separate architecture.
 
 ## Launch posture
 
-Phase 0: full collateral with the MPOR engine in shadow mode. Phase 1: hybrid margin for approved institutions. Phase 2: market-maker relief. Phase 3: broader offsets.
-
-## Variation margin
-
-At each VM window (00:00, 08:00, 16:00 UTC): `VM = V(t_1) - V(t_0)` on filtered fair marks. Call = requirement minus equity; withdrawable = equity minus requirement.
-
-**PB-managed:** PB operationalises the call under the CSA. **Full-collateral:** the collateral service executes VM transfers automatically.
-
-## Margin call lifecycle
-
-DRAFT, ISSUED, ACKNOWLEDGED, PARTIALLY_SATISFIED, SATISFIED — with DISPUTED, FAILED and DEFAULT_ESCALATION branches. Each transition records actor, timestamp, reason and evidence.
+Full collateral with the margin engine in shadow mode, collecting live data and validating models. When margin is offered, phased rollout: hybrid margin for approved members, then market-maker relief, then broader offsets.
 
 ## Margin simulator
 

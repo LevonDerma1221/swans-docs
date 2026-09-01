@@ -12,49 +12,37 @@ flowchart TB
     GW --> ENG[Pre-trade + matching engine]
     ENG -->|executions| TR[Trades]
     ENG -->|prices| MD[Market data]
-    TR --> POS[Positions]
-    POS --> RISK[Risk engine]
-    RISK --> MGN[Margin service]
-    MGN -->|budgets| ENG
-    MK[Marks] --> MGN
-    MK --> SET[Settlement]
+    TR --> COL[Collateral service]
+    COL -->|balances| ENG
+    MK[Marks] --> SET[Settlement]
+    SET --> COL
   end
 
   MD -->|market data| MEM
-  MGN -->|margin schedule, price file| PB[Prime brokers]
-  TR -->|drop copy| PB
-  SET -->|settlement value| PB
-  PB -->|limits| ENG
-  COL[Collateral service] -->|balances| ENG
-  SET --> COL
-  MGN --> COL
+  COL -->|lock max loss, settle payouts| MEM
+  RISK[Risk engine] -->|analytics| MEM
 ```
 
-## 2. Trade lifecycle
+## 2. Trade lifecycle (full collateral)
 
 ```mermaid
 sequenceDiagram
-  participant F as Fund
-  participant GW as SWANS gateway
-  participant ENG as SWANS engine
-  participant P as Prime broker
+  participant M as Member
+  participant S as SWANS
 
-  F->>GW: NewOrderSingle (FIX)
-  GW->>ENG: Pre-trade risk check
-  ENG-->>GW: Accepted
-  Note over ENG: Match with resting order
-  GW-->>F: ExecutionReport (fill)
-  ENG->>P: TradeCaptureReport (drop copy)
-  ENG->>P: Updated margin schedule
+  M->>S: Deposit cash
+  S-->>M: Balance confirmed
 
-  loop Every 8 hours (VM window)
-    ENG->>P: Filtered marks + VM + margin schedule
-    P->>F: VM settlement / margin call
-  end
+  M->>S: Order (FIX)
+  S->>S: Balance check (available >= max loss)
+  Note over S: Match with resting order
+  S-->>M: Execution report (fill)
+  Note over S: Max loss locked from both sides
 
-  Note over ENG: Source publishes, two-officer determination
-  ENG->>P: Final settlement value
-  P->>F: Cash settlement
+  Note over S: Time passes — no adjustments, no VM
+
+  Note over S: Source publishes, two-officer determination
+  S-->>M: Settlement: payout distributed, locks released
 ```
 
 ## 3. Two-engine risk architecture
@@ -79,14 +67,14 @@ flowchart LR
   FAM --> MPOR
   FAM --> TERM
 
-  MPOR -->|IM| OUT[Margin schedule]
+  MPOR -->|IM| OUT[Margin numbers]
   MPOR --> DIV
   TERM --> DIV[Divergence check]
   TERM -->|diagnostics| STRESS[Stress and validation]
   DIV -->|above threshold| AMOD[Model-risk add-on]
 ```
 
-The MPOR engine is authoritative for clearing IM. The terminal engine is a standing challenger. Both share the same factor state and calibration; divergence is diagnostic only under aligned comparison (the comparable-run rule).
+The MPOR engine is authoritative for clearing IM. The terminal engine is a standing challenger. At launch, the risk engine runs in shadow mode (analytics only). It becomes production when margin is offered.
 
 ## 4. Margin formula
 
@@ -101,7 +89,7 @@ flowchart LR
   ADD[Add-ons] --> HYBRID["IM = min(L_gross, IM_core + A)"]
 
   HYBRID --> FINAL["Event ramp blend to L_gross"]
-  FINAL --> SCHED[Margin schedule]
+  FINAL --> OUT[Margin output]
 ```
 
 ## 5. Contract engine
@@ -137,8 +125,7 @@ flowchart LR
   M --> COMB
   COMB --> FAIR[Fair mark]
 
-  FAIR --> VM[VM]
-  FAIR --> IM[IM]
+  FAIR --> IM[Risk analytics]
   FAIR --> PF[Price file]
 ```
 
@@ -168,7 +155,6 @@ flowchart LR
   end
 
   J -->|shipped| WS
-  SVC --> PBA[PB adapter]
   SVC --> COL[Collateral]
   SVC --> ARM[Reporting]
 ```

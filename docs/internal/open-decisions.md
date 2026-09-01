@@ -28,4 +28,4 @@
 | 24 | Anti-procyclicality buffer methodology and parameters | Mehdi | M1 |
 | 25 | Legal authority map: SWANS as venue+calc agent, or future DCO registration path? | Levon + counsel | Strategic |
 | 26 | Retail access: under what regulatory structure could retail clients access the venue? | Levon + counsel | Strategic |
-| 27 | Launch mode: full-collateral only, or PB-managed available at launch? | Levon | Before M2 |
+| 27 | How to offer margin: SWANS-managed, third-party, PB, or other structure? | Levon + Mehdi | Strategic |

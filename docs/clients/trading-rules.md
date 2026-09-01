@@ -43,13 +43,11 @@ Design note: a price-dependent tick (finer near 0 and 1, as some retail-facing e
 Every order passes, in this order:
 
 1. Member, account and contract enabled; before `last_trading_time`.
-2. PB kill switch not active.
-3. Quantity within contract and PB limits; price within bounds.
-4. Price band.
-5. Position limit (net absolute position after this order, including pending unconfirmed trades, within `position_limit`).
-6. **Full-collateral accounts:** balance check — `available >= max_loss` where max loss = price * payout * qty (buy) or (1-price) * payout * qty (sell). Reject with `INSUFFICIENT_BALANCE` if insufficient.
-7. **PB-managed accounts:** PB gross and net notional limits; SWANS margin budget (incremental IM within available budget set by PB). See [Margin](margin.md).
-8. Post-only and reduce-only semantics.
+2. Quantity within limits; price within bounds.
+3. Price band.
+4. Position limit (net absolute position after this order within `position_limit`).
+5. Balance check: `available >= max_loss` where max loss = price * payout * qty (buy) or (1-price) * payout * qty (sell). Reject with `INSUFFICIENT_BALANCE` if insufficient.
+6. Post-only and reduce-only semantics.
 
 Rejections carry a reason code in FIX tag 20001.
 
@@ -58,8 +56,7 @@ Rejections carry a reason code in FIX tag 20001.
 **24/7 continuous trading.** The matching engine runs without interruption. There is no opening or closing session and no weekend halt.
 
 - Individual contracts stop trading at their `last_trading_time`, which is set before the earliest possible publication of the settlement source.
-- **VM windows:** 00:00, 08:00, 16:00 UTC. Marks are fixed at each window; VM is computed and settled.
-- The reference price is the most recent VM window mark (not a daily settle).
+- The reference price is the filtered fair mark.
 
 ## RFQ (OTF mode)
 

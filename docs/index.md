@@ -9,34 +9,27 @@ SWANS is a trading venue for standardised, cash-settled event contracts on corpo
 ```
 Members ──FIX──▶ Gateway ──▶ Engine (pre-trade + matching) ──▶ Market data ──▶ Members
                                         │
-                                        ├──▶ Trades ──▶ Collateral service (full-collateral mode)
-                                        ├──▶ Trades ──▶ PB adapter (optional, PB-managed mode)
-                                        └──▶ Drop copy
+                                        ├──▶ Trades ──▶ Collateral service (lock max loss)
+                                        └──▶ Settlement ──▶ Collateral service (distribute payout)
 
-Margin engine    ──▶ balance checks / locks (full-collateral)
-                 ──▶ PB margin schedule (PB-managed)
-Settlement       ──▶ collateral payout or PB settlement value
+Margin engine    ──▶ risk analytics, price file (shadow mode at launch)
 ```
 
 ## Clearing model
 
-Two modes, configurable per account:
+**Full collateral at launch.** Members deposit cash. SWANS locks max loss at trade time. At settlement, payout is distributed. No variation margin, no margin calls, no adjustments in between. Simple.
 
-| Mode | How it works | Who holds cash |
-|---|---|---|
-| **Full collateral** | Members deposit cash. SWANS locks max loss per trade. VM every 8 hours. No PB needed. | SWANS (via custodian) |
-| **PB-managed** | Bilateral with prime brokers. SWANS is calculation agent. PB holds collateral under CSA. | Prime broker |
-
-**Full collateral is the day-one default.** PB mode adds capital efficiency once PBs are onboarded. CCP clearing is a future upgrade path.
+How to offer margin (capital efficiency without locking full max loss) is an open design question. See [Clearing](clients/clearing.md) and [Open decisions](internal/open-decisions.md).
 
 ## Trading hours
 
-**24/7 continuous trading.** No close. VM windows every 8 hours (00:00, 08:00, 16:00 UTC). Settlement determination happens when sources publish.
+**24/7 continuous trading.** No close. Settlement determination happens when sources publish.
 
 ## Contract economics
 
 - Price in [0.005, 0.995], tick = 0.005, 200 price levels
 - Payout: 100 units (GBP, USD or EUR), minimum notional $100
+- Full collateral: max loss locked at trade time
 - One order book per contract in yes-space
 
 **Note:** the contract structure (payout function, amount, settlement kind, funding mechanics) is not final and may change. The architecture treats the payoff as a pluggable function — see [Open decisions #2](internal/open-decisions.md).
@@ -48,8 +41,8 @@ Two modes, configurable per account:
 | [End-to-end views](diagrams.md) | Visual diagrams of the full system |
 | [System architecture](internal/architecture.md) | Components, build/buy, deployment |
 | [Contracts](clients/contracts.md) | Contract specs, schemas, families |
-| [Clearing and collateral](clients/clearing.md) | Full-collateral and PB-managed modes |
-| [Margin](clients/margin.md) | Margin methodology and outputs |
+| [Clearing and collateral](clients/clearing.md) | Full collateral and future margin |
+| [Margin](clients/margin.md) | Margin methodology (shadow mode at launch) |
 | [Fees](clients/fees.md) | Fee structure and components |
 | [Settlement](clients/settlement.md) | Determination process and sources |
 | [Trading rules](clients/trading-rules.md) | Order types, limits, halts |

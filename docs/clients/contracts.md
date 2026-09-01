@@ -24,7 +24,7 @@ Positive quantity is long; negative is short. Maximum loss per contract:
 - Long at p: p x 100 (contract settles at 0)
 - Short at p: (1 - p) x 100 (contract settles at 1)
 
-**Full-collateral accounts:** max loss locked at trade time. **PB-managed accounts:** margined futures-style. See [Margin](margin.md).
+Max loss is locked at trade time and released at settlement. See [Clearing](clearing.md).
 
 ## Symbols and identifiers
 

@@ -36,30 +36,27 @@ Pre-trade risk runs as a **stage inside the engine shard process** (no IPC hop),
 
 ## Collateral service
 
-Manages member balances for full-collateral accounts. See [Collateral service](services/collateral.md).
+Manages member balances. See [Collateral service](services/collateral.md).
 
-- Tracks deposits, locked collateral, available balance, VM transfers, settlement payouts, withdrawals
+- Tracks deposits, locked collateral, available balance, settlement payouts, withdrawals
 - Pushes balance snapshots to the engine pre-trade stage via `collateral.balances`
 - On trade: locks max loss from both sides
-- On VM window (every 8 hours): transfers mark-to-market changes between accounts
 - On settlement: distributes payout, releases locks
-
-Runs alongside the PB adapter — accounts can be PB-managed or fully collateralised.
+- No variation margin — locks stay fixed between trade and settlement
 
 ## Clearing layer
 
-**Full-collateral (default):** the collateral service handles everything — balance checks, locks, VM transfers, settlement payouts. No external dependency.
+**Full collateral (launch).** The collateral service handles everything: balance checks, locks, settlement payouts. No external dependency. No VM — locks stay fixed until settlement.
 
-**PB adapter (optional):** for PB-managed accounts, sends trade notifications (FIX drop copy), margin schedules, price/risk files, and settlement values to PBs. Receives PB limit updates. Architecturally identical to a future CCP adapter — swap the adapter, keep the core.
+**Future margin mode.** How to offer capital efficiency (margin/leverage) is an open design question. A PB adapter or CCP adapter could be added without changing the core system.
 
 ## Trading hours
 
 **24/7 continuous trading.** The matching engine runs without interruption. There is no opening or closing.
 
-- **VM windows:** 00:00, 08:00, 16:00 UTC. Marks are fixed at each window; VM is computed and settled.
 - **Settlement determination:** happens when the source publishes, regardless of time. Two-officer process operates during business hours; automated sources can trigger at any time.
 - **Maintenance:** rolling hot-deploy; no planned downtime windows. If maintenance requires a halt, 24-hour notice to members.
-- **Reference price:** the most recent VM window mark (not "daily settle").
+- **Reference price:** filtered fair mark (not "daily settle").
 
 ## Deployment
 
