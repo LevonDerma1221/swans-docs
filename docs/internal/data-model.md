@@ -1,9 +1,11 @@
 # Data model
 
+Design principle: **include fields needed for margin mode now**, even if unused at launch. Unused fields cost nothing; a data migration when margin is added costs a lot.
+
 ```cpp
 namespace swans {
 using InstrumentId = uint32_t;  using MemberId = uint16_t;  using AccountId = uint32_t;
-using OrderId = uint64_t;       using TradeId = uint64_t;
+using ClearerId = uint16_t;     using OrderId = uint64_t;   using TradeId = uint64_t;
 using SeqNum = uint64_t;        using Timestamp = int64_t;  using PriceTicks = int16_t;  using Qty = int32_t;
 
 enum class SchemaType : uint8_t { S01=1,S02,S03,S04,S05,S06,S07,S08,S09,S10 };
@@ -34,8 +36,25 @@ struct ContractSpec {
     bool rfq_only;
 };
 
+// --- Accounts and clearing ---
+
+enum class ClearingMode : uint8_t { FullCollateral, Margined };  // Margined = future (PB, CCP, or other)
 struct Member  { MemberId id; char lei[20]; char name[64]; bool enabled; };
-struct Account { AccountId id; MemberId member; bool enabled; };
+struct Account {
+    AccountId id; MemberId member; ClearingMode mode;
+    ClearerId pb;                    // 0 = no PB (full collateral); set when margin mode is offered
+    char pb_account_ref[32];         // PB's reference for this account
+    bool enabled;
+};
+
+// PB limits — unused at launch; ready for margin mode
+struct PBLimits {
+    ClearerId pb; AccountId account;
+    int64_t max_gross_notional_minor, max_net_notional_minor, max_daily_loss_minor, max_swans_im_minor;
+    Qty max_order_qty; bool kill; uint32_t version;
+};
+
+// --- Orders ---
 
 enum class Side : uint8_t { Buy=1, Sell=2 };
 enum class TimeInForce : uint8_t { Day=0, GTC=1, IOC=3, FOK=4, GTD=6 };
@@ -47,18 +66,30 @@ struct Order {
     char inv_decision_id[16]; char exec_within_firm_id[16]; bool algo;    // RTS 24
 };
 
-enum class TradeState : uint8_t { Matched, Settled, Busted };
+// --- Trades ---
+
+// Launch: Matched → Settled | Busted
+// Future (margin mode): Matched → NotifiedPB → PBAccepted → Settled | Busted
+enum class TradeState : uint8_t { Matched, NotifiedPB, PBAccepted, Settled, Busted };
 struct Trade {
     TradeId id; InstrumentId instrument; PriceTicks price; Qty qty;
     OrderId buy_order, sell_order; AccountId buy_account, sell_account;
-    Timestamp matched; TradeState state;
+    ClearerId buy_pb, sell_pb;       // 0 at launch (full collateral)
+    Timestamp matched, notified_pb, pb_response; TradeState state; char pb_trade_ref[32];
     uint8_t aggressor_side; char tvtic[52];
 };
 
+// --- Positions ---
+
 struct Position {
-    AccountId account; InstrumentId instrument; Qty net_qty;
-    int64_t avg_price_ticks_x1e6, realised_pnl_minor; Timestamp as_of;
+    AccountId account; InstrumentId instrument;
+    Qty net_qty;
+    Qty pending_qty;                 // 0 at launch; used when PB acceptance flow is added
+    int64_t avg_price_ticks_x1e6, realised_pnl_minor;
+    Timestamp as_of;
 };
+
+// --- Settlement ---
 
 enum class SettlementStatus : uint8_t { Proposed, Determined, Disputed, Final, Fallback };
 struct SettlementEvent {
@@ -67,9 +98,12 @@ struct SettlementEvent {
     char evidence_uri[256]; uint8_t evidence_sha256[32]; char determiner_id[16]; char confirmer_id[16];
 };
 
-// Collateral (full-collateral mode — launch)
+// --- Collateral ---
+
 struct CollateralAccount {
-    AccountId account; int64_t balance_minor, locked_minor, available_minor;
+    AccountId account;
+    int64_t balance_minor, locked_minor, available_minor;
+    int64_t vm_cumulative_minor;     // 0 at launch; tracks cumulative VM when margin mode is added
     Currency ccy; Timestamp as_of;
 };
 struct CollateralLock {
@@ -77,10 +111,22 @@ struct CollateralLock {
 };
 struct CollateralTransfer {
     uint64_t transfer_id; AccountId from_account, to_account; int64_t amount_minor;
-    enum Reason : uint8_t { Settlement, Deposit, Withdrawal, FeePayment }; Timestamp ts;
+    enum Reason : uint8_t { Settlement, Deposit, Withdrawal, FeePayment, VM }; Timestamp ts;
+    // VM unused at launch; ready for margin mode
 };
 
-// Risk run lineage (two-engine architecture, shadow mode at launch)
+// --- Margin calls (future: when margin is offered) ---
+
+enum class MarginCallState : uint8_t { Draft, Issued, Acknowledged, PartiallySatisfied, Satisfied, Disputed, Failed, DefaultEscalation, Cancelled };
+enum class MarginCallType : uint8_t { IM, VM, Collateral, AdHoc };
+struct MarginCall {
+    uint64_t call_id; uint32_t version; AccountId account; MarginCallType type; MarginCallState state;
+    int64_t amount_minor; Currency ccy; Timestamp issue_time, due_time;
+    char reason_code[32]; Timestamp last_updated;
+};
+
+// --- Risk run lineage (shadow mode at launch) ---
+
 struct RiskRunLineage {
     uint64_t risk_run_id; AccountId account;
     uint64_t portfolio_snapshot_id, mark_snapshot_id;
