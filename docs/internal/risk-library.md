@@ -4,18 +4,13 @@ One library; the venue services, margin engine and risk engine call it. No servi
 
 ```
 swans/risk/
-  instruments/  BinaryEvent, MeasuredEvent, Family (standalone, nested, ME, cluster), Hedge
-  marks/        candidates, logit combiner, filter, family projection            (V6 §11)
-  models/       IPricingModel, ICalibrator, IMarginModel, IHazardModel           ← Mehdi's implementations
-  factors/      latent loading file loader with Σ B² + w² = 1 assertion           (V6 §10.1)
-                factor identification: global tier F^G from cross-family liquid instruments;
-                family-local tier F^g from within-family data only
-  simulate/     latent diffusion, marked jump-to-resolution, cluster resolution, MPOR paths   (V6 §9, §13)
-                common/family/idiosyncratic dependence (hierarchical latent model)
-  margin/       structural max loss over admissible states, terminal VaR/ES, MPOR VaR/ES,
-                jump (sign-sensitive), add-ons (liq, conc, oracle, model, APC), event ramp, cap   (V6 §5, §12–15)
-                margin call lifecycle (DRAFT → ISSUED → SATISFIED → FAILED → DEFAULT_ESCALATION)
-  collateral/   eligibility, haircuts, collateral equity, resource comparison, withdrawal capacity
+  instruments/  BinaryEvent, MeasuredEvent, Family, Hedge
+  marks/        candidates, logit combiner, filter, family projection
+  models/       IPricingModel, ICalibrator, IMarginModel, IHazardModel   <- Mehdi's implementations
+  factors/      latent loading file loader
+  simulate/     latent diffusion, marked jump-to-resolution, cluster resolution, MPOR paths
+  margin/       structural max loss, terminal VaR/ES, MPOR VaR/ES, add-ons, event ramp, margin call lifecycle
+  collateral/   eligibility, haircuts, collateral equity, resource comparison
   fees/         v3 fee components, z-score, smoothstep, attribution
   measures/     factor exposures, scenarios, stress-resource consumption
   io/           loaders, PB schedule writer, price-risk file writer, SFTP batch file writer
@@ -23,109 +18,25 @@ swans/risk/
 
 ## Two-engine architecture
 
-The library implements two risk engines that share the same factor state and instrument valuation maps:
-
 | Engine | Purpose | Authority |
 |---|---|---|
-| **MPOR engine** | Simulates portfolio close-out loss over the margin period of risk `[t, t+h]` | Authoritative for clearing IM (VaR/ES) |
-| **Terminal engine** | Draws terminal joint law of factors through copula; evaluates to-resolution loss | Challenger/diagnostics, stress, structural validation |
+| **MPOR engine** | Close-out loss over the margin period of risk `[t, t+h]` | Authoritative for clearing IM |
+| **Terminal engine** | Terminal joint law through factor copula; to-resolution loss | Challenger, diagnostics, stress |
 
-**Common economic-state contract.** Both engines MUST use the same versioned economic factor taxonomy, factor identifiers, calibration snapshot for shared drivers, dependency-model metadata and instrument-to-value mappings wherever the same economic driver is represented. They need not use identical state vectors or the same factor realization. The MPOR engine may augment shared state with path variables (stochastic volatility, resolution intensity, liquidity, operational state); the terminal engine may use terminal-specific latent variables and copula states:
+**Common economic-state contract.** Both engines share the same versioned factor taxonomy, calibration snapshot, and instrument-to-value mappings. They may carry different path/terminal-specific state variables (`S_MPOR = S_shared + U_path`; `S_terminal = S_shared + U_terminal`). A run is rejected only for a semantic/version mismatch in the shared contract, not for different dimensions or horizons.
 
-```
-S_MPOR    = (S_shared, U_path)
-S_terminal = (S_shared, U_terminal)
-```
+**Cross-engine divergence (comparable-run rule).** Divergence `D_a` is diagnostic only when outputs are aligned on horizon, measure, portfolio snapshot and output definition. A difference between a 5-day close-out loss and a to-resolution terminal loss is expected, not a defect. Persistent divergence under aligned comparison is a model-governance trigger.
 
-A run is rejected only for a semantic/version mismatch in the shared state contract, not because the two engines have different dimensions or horizons.
+## Key interfaces
 
-**Cross-engine divergence (comparable-run rule).** Divergence is a model-risk diagnostic only when the two outputs have been deliberately aligned on (i) risk horizon, (ii) probability/risk measure, (iii) portfolio and mark snapshot, and (iv) risk statistic definition. For an approved comparison configuration `χ`:
+Models implement `IPricingModel`, `ICalibrator`, `IMarginModel`, `IHazardModel`. The library never contains model logic — Mehdi's implementations plug in. See the risk engine technical specification for full interface definitions and quantitative detail.
 
-```
-D_a,χ = |R_MPOR_a,χ - R_terminal_a,χ| / max(R_MPOR_a,χ, R_terminal_a,χ, ε)
-```
+## Simulation
 
-A numerical difference between unaligned outputs (e.g. 5-day close-out loss vs to-resolution terminal loss) is expected behavior, not a defect. `D_a,χ` above a governance threshold routes to the risk desk and contributes to `A_model`. Persistent divergence is a model-governance trigger.
+Event-contract dynamics: bounded diffusion plus marked jumps to resolution. Hierarchical latent factor model with global, family-local, and idiosyncratic components. Factor identification rule: the conceptual basis for portfolio-margin offsets may include complement/substitute relationships, shared inputs, or common external drivers — not limited to a named global factor.
 
-## Core interfaces
+Requirements: common random numbers for before/after comparisons; deterministic replay from seed + build hash; probability states in [0, 1]; structural-family invariants validated per scenario; Monte Carlo standard error reported when it can affect a margin decision.
 
-```cpp
-namespace swans::risk {
-struct InstrumentRef { enum Kind : uint8_t { Venue, Hedge } kind; uint32_t id; };
-struct FamilyDef { uint32_t id; FamilyType type; std::vector<uint32_t> members; std::vector<std::vector<uint8_t>> admissible; };
-struct MarketSnapshot { Timestamp as_of; std::unordered_map<uint32_t,double> fair_mark, settle, hedge_price;
-                        std::unordered_map<std::string,double> implied_move, factor_level; std::vector<FamilyDef> families; };
-struct EventState { double p, hazard1, hazard0, t_to_event_years, event_ramp; };
-struct Position { InstrumentRef ref; double qty; };
-struct Portfolio { AccountId account; std::vector<Position> positions; };
-struct MarginParams { double var_conf=0.99, es_conf=0.975, kappa_es=1.0; int mpor_days_base=2;
-                      bool allow_family_netting=true; uint8_t offset_stage=1; double liq_tier_beta, conc_zeta, conc_threshold,
-                      model_risk_zeta, apc_theta, oracle_addon; bool market_maker_relief=false; };
-struct MarginResult { double im, l_gross, var_mpor, es_mpor, im_jump, floor, a_liq, a_conc, a_oracle, a_model, a_event, a_apc;
-                      double lambda_event; int mpor_days; double fast_bound;
-                      double terminal_var, terminal_es, divergence_d;    // two-engine outputs
-                      std::vector<std::pair<std::string,double>> attribution; };
+## Golden tests
 
-class IPricingModel { public: virtual ~IPricingModel()=default;
-    virtual double price(const ContractSpec&, const EventState&, const MarketSnapshot&) const=0;
-    virtual std::vector<double> factorSensitivities(const ContractSpec&, const EventState&, const MarketSnapshot&) const=0; };
-class ICalibrator { public: virtual ~ICalibrator()=default;
-    virtual std::unordered_map<uint32_t,EventState> calibrate(const std::vector<ContractSpec>&, const MarketSnapshot&) const=0; };
-class IHazardModel { public: virtual ~IHazardModel()=default;
-    virtual std::pair<double,double> intensities(const ContractSpec&, const EventState&, Timestamp) const=0; };   // Λ¹, Λ⁰
-class IMarginModel { public: virtual ~IMarginModel()=default;
-    virtual MarginResult margin(const Portfolio&, const MarketSnapshot&, const MarginParams&) const=0;
-    virtual double incremental(const Portfolio&, const Position&, const MarketSnapshot&, const MarginParams&) const=0;
-    virtual double fastBound(const Position&, const MarketSnapshot&) const=0; };
-
-double structuralMaxLoss(const Portfolio&, const MarketSnapshot&);            // over admissible states, family by family
-std::vector<double> projectToFamily(const std::vector<double>& marks, const FamilyDef&);
-struct FeeInputs { double p; int side; double notional; double tau; double liquidity_L; std::map<uint32_t,double> conc_by_family;
-                   double unwind_U; double maker_Q; };
-struct FeeResult { double bps; std::map<std::string,double> components; bool floor_applied; };
-FeeResult computeFee(const FeeInputs&, const FeeParams&);
-}
-```
-
-## Quantitative specification
-
-### Portfolio representation
-
-Signed position matrix `Q ∈ R^{A×K}` where `Q_ak > 0` is long YES, `Q_ak < 0` is short YES. Contract multiplier matrix `D_M = diag(M_1, ..., M_K)`. Marked portfolio value:
-
-```
-V_a(t) = Σ_k Q_ak · M_k · X_k(t)
-```
-
-### Event-contract dynamics
-
-Bounded diffusion plus marked jumps to resolution:
-
-```
-dX_t = μ_t dt + σ(t, X_t, Z_t) · X_t⁻(1-X_t⁻) dW_t + (1-X_t⁻) dN¹_t - X_t⁻ dN⁰_t
-```
-
-With marked intensities `Λ¹ = X·λ¹(t, X, Z)`, `Λ⁰ = (1-X)·λ⁰(t, X, Z)` and martingale correction `μ_t = -X(1-X)(λ¹ - λ⁰)`.
-
-### Common, family and idiosyncratic dependence
-
-Hierarchical latent model for event contract k:
-
-```
-Z_k = a_k + B^G_k · F^G + B^g(k)_k · F^g(k) + w_k · ε_k
-```
-
-**Factor identification rule.** A global factor has a stable economic interpretation across multiple product families and can be anchored by observable data across those families. Liquid traditional instruments may materially improve estimation of the factor state, covariance and historical dynamics, but they do not determine an event contract's loading `B^G_k` automatically. Event-contract loadings and family mappings remain separate calibration objects, estimated from event-market data, structural relationships, proxies and/or governed priors. A family-local factor is used where the relevant driver is economically specific to that family.
-
-The conceptual basis for a portfolio-margin offset is broader than a named global factor. It may arise because products are complements or substitutes, one product is a material input to another, they share a material input, or they are influenced by common external factors — provided the relationship is supported by reliable risk evidence and governance.
-
-### Simulation requirements
-
-- Common random numbers for before/after hypothetical-trade comparisons
-- Random seed, generator algorithm, scenario-set version, path count persisted
-- Probability states remain in [0, 1]; legal resolution maps exactly to settlement state
-- Structural-family invariants validated before and after scenario transformation
-- Parallel execution preserves scenario identity and deterministic replay
-- Results include numerical standard-error when Monte Carlo error can affect a margin decision
-
-**Golden tests:** Mehdi's Python reference (structural max loss, terminal VaR/ES, concentration add-on, fee lab archetypes) produces golden outputs; C++ must match to tolerance. **Backtests** disclose synthetic price paths wherever venue history is absent.
+Mehdi's Python reference (structural max loss, terminal VaR/ES, concentration add-on, fee lab archetypes) produces golden outputs; C++ must match to tolerance. Backtests disclose synthetic price paths wherever venue history is absent.

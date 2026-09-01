@@ -1,6 +1,6 @@
 # System architecture (internal)
 
-**Version 3.0.** Bilateral/PB + full-collateral dual mode. 24/7 continuous trading. CCP clearing is a future upgrade path.
+**Version 3.0.** Full-collateral as day-one default + optional PB-managed mode. 24/7 continuous trading. CCP clearing is a future upgrade path.
 
 ## Build / buy
 
@@ -46,16 +46,11 @@ Manages member balances for full-collateral accounts. See [Collateral service](s
 
 Runs alongside the PB adapter — accounts can be PB-managed or fully collateralised.
 
-## Clearing layer: PB adapter
+## Clearing layer
 
-The PB adapter is a service that:
-- Sends `TradeCaptureReport` (FIX drop copy) to PBs on each match
-- Delivers margin schedule updates (IM/VM per account) to PBs
-- Delivers price and risk file to PBs
-- Delivers settlement values to PBs for cash settlement
-- Receives PB limit updates (max order size, notional limits, kill switch)
+**Full-collateral (default):** the collateral service handles everything — balance checks, locks, VM transfers, settlement payouts. No external dependency.
 
-This is architecturally identical to a CCP adapter — same interface, different counterparty. When a CCP is available, swap the adapter.
+**PB adapter (optional):** for PB-managed accounts, sends trade notifications (FIX drop copy), margin schedules, price/risk files, and settlement values to PBs. Receives PB limit updates. Architecturally identical to a future CCP adapter — swap the adapter, keep the core.
 
 ## Trading hours
 
@@ -76,13 +71,14 @@ This is architecturally identical to a CCP adapter — same interface, different
 
 `int64_t` nanoseconds since Unix epoch, UTC, everywhere. Production clocks disciplined by PTP; RTS 25 traceability to UTC. Prototype uses NTP.
 
-## Contract economics (locked)
+## Contract economics
 
 - Price in [0.005, 0.995], ticks of 0.005, integer `price_ticks in [1, 199]`; payout 100 units; minimum notional $100; currencies GBP/USD/EUR, one per contract.
 - **PB-managed accounts:** futures-style margining. No premium at trade time; VM at each window; IM from the margin service.
 - **Full-collateral accounts:** max loss locked at trade time. VM transfers at each window. No margin engine dependency for pre-trade.
 - One book per contract in yes-space.
 - **Packages are separate products** with their own bounded payoff. Leg decomposition exists only inside SWANS's risk and position views.
+- **Payout structure is not final.** The binary yes/no format, payout amount and settlement kind may evolve. The `ContractSpec` and margin engine treat the payoff as a pluggable function. See [Open decisions #2](open-decisions.md).
 
 ## Non-goals for phase 1
 

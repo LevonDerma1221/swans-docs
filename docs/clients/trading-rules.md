@@ -51,7 +51,7 @@ Every order passes, in this order:
 7. **PB-managed accounts:** PB gross and net notional limits; SWANS margin budget (incremental IM within available budget set by PB). See [Margin](margin.md).
 8. Post-only and reduce-only semantics.
 
-Rejections carry a reason code in tag 20001. See [Error codes](api/error-codes.md).
+Rejections carry a reason code in FIX tag 20001.
 
 ## Trading hours
 

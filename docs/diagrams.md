@@ -6,52 +6,28 @@ All diagrams are Mermaid; GitHub renders them natively and the MkDocs site rende
 
 ```mermaid
 flowchart TB
-  subgraph Members
-    OMS[Member OMS / EMS]
-    LP[Liquidity providers]
+  MEM[Members] -->|FIX orders| GW[FIX gateway]
+
+  subgraph SWANS
+    GW --> ENG[Pre-trade + matching engine]
+    ENG -->|executions| TR[Trades]
+    ENG -->|prices| MD[Market data]
+    TR --> POS[Positions]
+    POS --> RISK[Risk engine]
+    RISK --> MGN[Margin service]
+    MGN -->|budgets| ENG
+    MK[Marks] --> MGN
+    MK --> SET[Settlement]
   end
-  subgraph SWANS["SWANS venue (LD4)"]
-    GW[FIX gateway]
-    ENG["Engine shard: pre-trade risk, matching"]
-    MD[Market data publisher]
-    TR[Trades service]
-    POS[Position service]
-    MK[Marks service]
-    RISK[Risk engine / libswansrisk]
-    MGN[Margin and fee service]
-    SET[Settlement service]
-    CE[Contract engine]
-    REF[Reference data]
-    REP[Reporting and surveillance]
-    API[REST / WebSocket / PB API]
-    PBA[PB adapter]
-    COL[Collateral service]
-  end
-  subgraph Post-trade
-    PB[Prime brokers]
-  end
-  subgraph Oversight
-    FCA[FCA / ARM]
-    SURV[Surveillance system]
-  end
-  OMS -->|FIX 4.4| GW --> ENG --> MD -->|FIX / WS| OMS
-  LP -->|FIX| GW
-  ENG --> TR --> PBA -->|trade notification, FIX drop copy| PB
-  TR --> POS --> RISK --> MGN
-  MK --> MGN
-  MGN -->|budgets| ENG
-  MGN -->|margin schedule| PBA
-  MGN -->|price and risk file| PBA
-  PBA --> PB
-  SET --> TR
-  SET -->|final settlement value| PBA
-  SET -->|settlement payout| COL
-  COL -->|balance snapshots| ENG
-  ENG -->|trade locks| COL
-  CE --> REF --> ENG
-  PB -->|limits, kill| API --> ENG
-  REP -->|RTS 22 / 24| FCA
-  REP --> SURV
+
+  MD -->|market data| MEM
+  MGN -->|margin schedule, price file| PB[Prime brokers]
+  TR -->|drop copy| PB
+  SET -->|settlement value| PB
+  PB -->|limits| ENG
+  COL[Collateral service] -->|balances| ENG
+  SET --> COL
+  MGN --> COL
 ```
 
 ## 2. Trade lifecycle
@@ -59,72 +35,87 @@ flowchart TB
 ```mermaid
 sequenceDiagram
   participant F as Fund
-  participant S as SWANS
+  participant GW as SWANS gateway
+  participant ENG as SWANS engine
   participant P as Prime broker
-  F->>S: NewOrderSingle (FIX D)
-  S->>S: pre-trade checks (PB limits + margin budget, or balance check)
-  S->>S: match
-  S-->>F: ExecutionReport (F)
-  S->>P: TradeCaptureReport (drop copy via PB adapter)
-  S->>P: updated margin schedule (IM/VM)
-  P->>F: margin call under CSA
-  loop every 8 hours (00:00, 08:00, 16:00 UTC)
-    S->>P: filtered marks, VM, margin schedule
-    P->>F: VM settlement, margin call if needed
+
+  F->>GW: NewOrderSingle (FIX)
+  GW->>ENG: Pre-trade risk check
+  ENG-->>GW: Accepted
+  Note over ENG: Match with resting order
+  GW-->>F: ExecutionReport (fill)
+  ENG->>P: TradeCaptureReport (drop copy)
+  ENG->>P: Updated margin schedule
+
+  loop Every 8 hours (VM window)
+    ENG->>P: Filtered marks + VM + margin schedule
+    P->>F: VM settlement / margin call
   end
-  S->>S: settlement determination (two officers, dispute window)
-  S->>P: final settlement value
-  P->>F: cash settlement, margin release
+
+  Note over ENG: Source publishes, two-officer determination
+  ENG->>P: Final settlement value
+  P->>F: Cash settlement
 ```
 
 ## 3. Two-engine risk architecture
 
 ```mermaid
-flowchart TB
-  IN1[Positions net + pending] --> SHARED[Shared factor state Z]
-  IN2[Filtered fair marks] --> SHARED
-  IN3[Families and admissible states] --> SHARED
-  IN4[Hazards, factors, liquidity tiers] --> SHARED
-  SHARED --> MPOR[MPOR engine: close-out loss over margin period]
-  SHARED --> TERM[Terminal engine: factor copula, to-resolution loss]
-  MPOR --> IM[IM = max VaR, ES, jump, floor + add-ons]
-  TERM --> DIAG[Challenger diagnostics and stress]
-  MPOR --> DIV[Divergence D_a]
-  TERM --> DIV
-  DIV --> AMOD[Model-risk add-on A_model]
-  IM --> O1[Pre-trade budgets and fast bounds]
-  IM --> O2[PB margin schedule with attribution]
-  IM --> O3[Price and risk file]
-  IM --> O4[Backtests, sensitivity, trigger report]
-  IM --> O5[Collateral lock adjustments]
+flowchart LR
+  subgraph Inputs
+    POS[Positions]
+    MK[Marks]
+    FAM[Families]
+  end
+
+  subgraph Engines
+    MPOR[MPOR engine]
+    TERM[Terminal engine]
+  end
+
+  POS --> MPOR
+  POS --> TERM
+  MK --> MPOR
+  MK --> TERM
+  FAM --> MPOR
+  FAM --> TERM
+
+  MPOR -->|IM| OUT[Margin schedule]
+  MPOR --> DIV
+  TERM --> DIV[Divergence check]
+  TERM -->|diagnostics| STRESS[Stress and validation]
+  DIV -->|above threshold| AMOD[Model-risk add-on]
 ```
 
-## 4. Margin engine outputs
+The MPOR engine is authoritative for clearing IM. The terminal engine is a standing challenger. Both share the same factor state and calibration; divergence is diagnostic only under aligned comparison (the comparable-run rule).
+
+## 4. Margin formula
 
 ```mermaid
 flowchart LR
-  SML[Structural max loss L_gross] --> CAP[Cap]
-  CORE["IM_core = max(VaR, kES, jump, floor)"] --> HYBRID[IM_hybrid = min L_gross, IM_core + add-ons]
-  ADDONS["A_liq + A_conc + A_oracle + A_model + A_event + A_APC"] --> HYBRID
-  CAP --> HYBRID
-  HYBRID --> RAMP["IM_event = (1-lambda) IM_hybrid + lambda L_gross"]
-  RAMP --> BUDGET[Pre-trade budgets]
-  RAMP --> SCHED[PB margin schedule]
-  RAMP --> LOCK[Collateral locks]
+  VaR[VaR 99%] --> CORE
+  ES[ES 97.5%] --> CORE
+  JUMP[Jump-to-resolution] --> CORE
+  FLOOR[Floor] --> CORE["IM_core = max()"]
+
+  CORE --> HYBRID
+  ADD[Add-ons] --> HYBRID["IM = min(L_gross, IM_core + A)"]
+
+  HYBRID --> FINAL["Event ramp blend to L_gross"]
+  FINAL --> SCHED[Margin schedule]
 ```
 
 ## 5. Contract engine
 
 ```mermaid
 flowchart LR
-  SRC[Regulator calendars, filings, trial registries, dockets, macro calendars] --> SCAN[Scan]
-  SCAN --> SURF[Surface: taxonomy]
-  SURF --> SCORE[Score: relevance]
-  SCORE --> SPEC[Specify: schema, slots, source hierarchy, expiry, family, limit, group]
+  SRC[Source calendars] --> SCAN[Scan and surface]
+  SCAN --> SCORE[Score relevance]
+  SCORE --> SPEC[Generate spec]
   SPEC --> NPC[New Product Committee]
-  NPC --> REF[Reference data: listed]
-  INTAKE[Member exposure intake] --> TRI{Triage}
-  TRI -->|matched| REF
+  NPC --> LIST[Listed contract]
+
+  REQ[Member intake] --> TRI{Match?}
+  TRI -->|yes| LIST
   TRI -->|generatable| SPEC
   TRI -->|latent| LOG[Demand log]
 ```
@@ -132,60 +123,52 @@ flowchart LR
 ## 6. Marks and settlement
 
 ```mermaid
-flowchart TB
-  A[Auction print] --> L[Logit combiner]
-  B[Executable microprice] --> L
-  T[Decayed VWAP] --> L
-  M[Model mark] --> L
-  L --> FLT[Filter] --> PRJ[Family projection] --> XF[X_fair]
-  XF --> VM[Variation margin]
-  XF --> IM[Initial margin]
-  XF --> PF[Price file]
-  SRC[Source publication] --> P1[Officer 1: propose, hash evidence] --> P2[Officer 2: confirm] --> DW[Dispute window] --> FIN[Final settlement] --> PB[PB cash settlement / collateral payout]
-  DW -->|dispute| CMT[Settlement committee] --> FIN
-  DL[Deadline passed] --> FB[Fallback rule] --> FIN
+flowchart LR
+  subgraph Mark sources
+    A[Auction price]
+    B[Microprice]
+    T[Decayed VWAP]
+    M[Model mark]
+  end
+
+  A --> COMB[Logit combiner and filter]
+  B --> COMB
+  T --> COMB
+  M --> COMB
+  COMB --> FAIR[Fair mark]
+
+  FAIR --> VM[VM]
+  FAIR --> IM[IM]
+  FAIR --> PF[Price file]
+```
+
+```mermaid
+flowchart LR
+  SRC[Source publishes] --> O1[Officer 1 proposes]
+  O1 --> O2[Officer 2 confirms]
+  O2 --> DW[Dispute window]
+  DW --> SET[Final settlement]
+  DW -->|dispute| CMT[Committee] --> SET
+  SET --> PAY[Payout]
 ```
 
 ## 7. Deployment
 
 ```mermaid
 flowchart LR
-  subgraph LD4["LD4 primary"]
-    XC[Member cross-connects / VPN] --> LB[TLS termination] --> GW[Gateways]
-    GW --> ENG[Engine hosts, pinned cores]
-    ENG --> SVC[Trades, positions, marks, risk, margin, settlement]
+  subgraph LD4[LD4 primary]
+    GW[Gateways] --> ENG[Engine]
+    ENG --> SVC[Services]
     SVC --> DB[(PostgreSQL)]
     SVC --> J[(Journals)]
   end
-  subgraph DR["DR site"]
-    J2[(Shipped journals)] --> WS[Warm standby]
+
+  subgraph DR[DR site]
+    WS[Warm standby]
   end
-  J --> J2
+
+  J -->|shipped| WS
   SVC --> PBA[PB adapter]
-  SVC --> COLS[Collateral service]
-  SVC --> ARM[ARM / surveillance]
-```
-
-## 8. Fee engine
-
-```mermaid
-flowchart LR
-  F["Fill: p, side, notional"] --> Z["z = s*(2p-1)"]
-  Z --> CP[Certainty pressure]
-  TAU["Time to event tau"] --> EW[Event window]
-  Z --> EW
-  LQ[Book liquidity L] --> LC[Liquidity stress]
-  CONC[Concentration by family] --> CC[Concentration]
-  CP --> R[Risk block R]
-  EW --> R
-  LC --> R
-  CC --> R
-  POS[Pre-fill position] --> U[Unwind fraction U]
-  R --> FEE["f = max(f_min, B + R*(1-rhoU) - D - M)"]
-  Z --> D[Contrarian discount]
-  MQ[Maker quality] --> M[Maker rebate]
-  D --> FEE
-  M --> FEE
-  B[Base] --> FEE
-  FEE --> ATTR[Attribution per fill]
+  SVC --> COL[Collateral]
+  SVC --> ARM[Reporting]
 ```

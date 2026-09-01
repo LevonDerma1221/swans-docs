@@ -1,62 +1,29 @@
-# Governance: committees, listing, settlement, models and risk
+# Governance: committees, models and risk
 
-## New Product Committee
-Members: head of product (chair), head of risk, compliance, one independent. Meets weekly and on demand. Approves every listing against the schema checklist; nothing lists without a recorded decision. Minutes retained; conflicts declared and recorded.
+## Committees
 
-## Settlement committee
-Members: chief compliance officer (chair), head of product, an independent member with domain expertise, general counsel as adviser. Convened on dispute or on fallback; decides within the dispute window; decisions published with reasons; no committee member may hold a position in the contract (attested per case). Appeals under the rulebook to an independent adjudicator.
+**New Product Committee.** Head of product (chair), head of risk, compliance, one independent. Meets weekly. Approves every listing against the schema checklist. Minutes retained; conflicts declared.
 
-## Risk committee
-Members: head of risk (chair), CTO, CEO, one independent with clearing experience. Approves margin and fee parameters, model changes, offset-stage changes, liquidity-provider relief criteria and any intraday parameter action in stress. Reviews backtests monthly and validation annually. Approves cross-margin group additions and netting layer expansions.
+**Settlement Committee.** Chief compliance officer (chair), head of product, independent domain expert, general counsel adviser. Convened on dispute or fallback; decides within the dispute window; no member may hold a position in the contract.
+
+**Risk Committee.** Head of risk (chair), CTO, CEO, one independent with clearing experience. Approves margin and fee parameters, model changes, offset-stage changes, liquidity-provider relief criteria. Reviews backtests monthly and validation annually.
 
 ## Model governance
 
-Every model (pricing, hazard, margin, fee, marks filter) has:
+Every model (pricing, hazard, margin, fee, marks) has: unique `model_id`, semantic version, named owner, approved scope, parameter schema, validation status, effective date, code commit hash, and rollback version. All production models are registered with full lineage (portfolio snapshot, mark snapshot, model version, parameter set, build hash, etc.).
 
-| Attribute | Description |
-|---|---|
-| `model_id` | Unique identifier |
-| Semantic version | `major.minor` |
-| Owner | Named individual |
-| Purpose and approved scope | Which products/accounts it covers |
-| Parameter schema | Versioned separately from model code |
-| Validation status | Pending, validated, approved, retired |
-| Effective date | When it enters production |
-| Code commit / build hash | Exact reproducibility |
-| Rollback version | Previous version for immediate revert |
+**Two-engine governance.** The MPOR engine is the clearing-IM authority. The terminal engine is authoritative for diagnostics, structural validation and stress. Cross-engine divergence is diagnostic only under aligned comparison (the comparable-run rule). Persistent divergence is a model-governance trigger.
 
-### Model registry
-
-All production models are registered. Policy parameters are versioned separately from mathematical model code. Official runs persist the full lineage tuple: portfolio snapshot, mark snapshot, collateral snapshot, model version, parameter set, policy version, scenario set, random seed, path count, software build hash, infrastructure image digest.
-
-### Two-engine governance
-
-The MPOR engine is the clearing-IM authority. The terminal/challenger engine is authoritative for terminal-outcome diagnostics, structural validation and designated challenger/stress outputs. Cross-engine divergence is a model-risk diagnostic only when outputs are deliberately aligned on horizon, measure, portfolio snapshot and output definition (the "comparable-run rule"). A numerical difference between unaligned outputs (e.g. 5-day close-out loss vs to-resolution terminal loss) is expected behavior, not a defect. The engine never blends MPOR and terminal results into a single figure without an approved, versioned reconciliation rule. Persistent divergence under aligned comparison is a model-governance trigger.
-
-### Backtesting and validation
-
-- Backtesting is performed at account/product/portfolio levels required by the margin methodology
-- Breaches store realized P&L definition, amount, IM, MPOR, portfolio snapshot and root-cause classification
-- Coverage tests, sensitivity, stress, parameter stability and challenger comparisons are automated
-- Model change promotion requires independent validation evidence and before/after impact analysis
-- Margin overrides are recorded as separate policy-adjustment events with actor, reason, approval and expiry, preserving the original calculated result
-
-### Calculation invariants
-
-| Invariant | Control |
-|---|---|
-| Probability bounds | `0 ≤ X_fair ≤ 1`; structural family constraints satisfied |
-| Max-loss cap | Contract-loss IM ≤ remaining structural gross max loss |
-| Origin segregation | Customer/house netting follows legally permitted scope |
-| Collateral uniqueness | Each lot credited only to entitled account/pool within available amount |
-| Replay | Same immutable inputs + deterministic seed/build reproduce result within tolerance |
-| Report reconciliation | Totals reconcile to source ledgers and manifest counts |
+**Backtesting.** Performed at account/product/portfolio levels. Breaches store realized P&L, IM, MPOR, snapshot and root-cause classification. Model changes require independent validation and before/after impact analysis. Margin overrides are recorded separately, preserving the original calculated result.
 
 ## Contract engine governance
-LLM components are used only for candidate surfacing, scoring and intake decomposition; every output passes deterministic validation against the schema definition; no contract is listed without New Product Committee approval. Prompts are versioned; inputs and outputs logged; member intake data is never used to train or prompt beyond the request.
+
+LLM components are used only for candidate surfacing and scoring; every output passes deterministic validation against the schema definition; no contract lists without NPC approval.
 
 ## Fee governance
-Fee parameters are versioned reference data; anti-gaming monitoring reports monthly to the risk committee; the aggregation window for anti-gaming is the trading day, keyed on the affiliate group (member LEI and declared affiliates), recomputed at end of day with adjustments in the fee file.
+
+Fee parameters are versioned reference data; anti-gaming monitoring reports monthly to the risk committee.
 
 ## Conflicts and product governance
-Target market: professional clients and eligible counterparties only. Each schema carries its hedging rationale and harm analysis; product governance records retained per PROD.
+
+Target market: professional clients and eligible counterparties only. Each schema carries its hedging rationale and harm analysis.

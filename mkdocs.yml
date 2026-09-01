@@ -1,5 +1,5 @@
 site_name: SWANS Event Exchange — Documentation
-site_description: Client documentation and internal build specification for the SWANS MTF
+site_description: Internal technical specification for the SWANS event exchange
 theme:
   name: material
   custom_dir: overrides
@@ -18,34 +18,17 @@ markdown_extensions:
 nav:
   - Overview: index.md
   - End-to-end views: diagrams.md
-  - Client documentation:
-      - Quickstart: clients/quickstart.md
+  - Product:
       - Architecture: clients/architecture.md
-      - Guarantees and non-guarantees: clients/guarantees.md
       - Onboarding: clients/onboarding.md
       - Contracts: clients/contracts.md
       - Schemas and contract engine: clients/schemas.md
       - Trading rules: clients/trading-rules.md
-      - Margin and collateral: clients/margin.md
+      - Clearing and collateral: clients/clearing.md
+      - Margin: clients/margin.md
       - Fees: clients/fees.md
-      - PnL and variation margin: clients/pnl.md
-      - Clearing and give-up: clients/clearing.md
       - Settlement: clients/settlement.md
       - Market data: clients/market-data.md
-      - Reconciliation: clients/reconciliation.md
-      - Versioning and change management: clients/change-management.md
-      - API:
-          - Authentication and keys: clients/api/auth.md
-          - Order and event semantics: clients/api/semantics.md
-          - Examples: clients/api/examples.md
-          - Rate limits and close codes: clients/api/rate-limits.md
-          - FIX order entry: clients/api/fix.md
-          - REST API: clients/api/rest.md
-          - WebSocket API: clients/api/websocket.md
-          - PB API: clients/api/clearer.md
-          - Reference types: clients/api/reference-types.md
-          - Error codes: clients/api/error-codes.md
-      - Conformance: clients/conformance.md
   - Internal build specification:
       - System architecture: internal/architecture.md
       - Data model: internal/data-model.md
