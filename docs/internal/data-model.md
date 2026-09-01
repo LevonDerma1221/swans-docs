@@ -86,6 +86,24 @@ struct CollateralTransfer {
     uint64_t transfer_id; AccountId from_account, to_account; int64_t amount_minor;
     enum Reason : uint8_t { VM, Settlement, Deposit, Withdrawal, FeePayment }; Timestamp ts;
 };
+// Margin call lifecycle
+enum class MarginCallState : uint8_t { Draft, Issued, Acknowledged, PartiallySatisfied, Satisfied, Disputed, Failed, DefaultEscalation, Cancelled };
+enum class MarginCallType : uint8_t { IM, VM, Collateral, AdHoc };
+struct MarginCall {
+    uint64_t call_id; uint32_t version; AccountId account; MarginCallType type; MarginCallState state;
+    int64_t amount_minor; Currency ccy; Timestamp issue_time, due_time;
+    char reason_code[32]; char settlement_instructions[128]; Timestamp last_updated;
+};
+// Risk run lineage (two-engine architecture)
+struct RiskRunLineage {
+    uint64_t risk_run_id; AccountId account;
+    uint64_t portfolio_snapshot_id, mark_snapshot_id, collateral_snapshot_id;
+    char model_version[16]; char parameter_set_id[16]; char policy_version[16];
+    uint64_t scenario_set_id; uint64_t random_seed; uint32_t path_count;
+    char software_build_hash[64];
+    double im_mpor, im_terminal, divergence_d;    // two-engine outputs
+    Timestamp started, completed;
+};
 }
 ```
 

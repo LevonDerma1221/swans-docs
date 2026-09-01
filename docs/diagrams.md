@@ -77,22 +77,43 @@ sequenceDiagram
   P->>F: cash settlement, margin release
 ```
 
-## 3. Margin engine outputs
+## 3. Two-engine risk architecture
+
+```mermaid
+flowchart TB
+  IN1[Positions net + pending] --> SHARED[Shared factor state Z]
+  IN2[Filtered fair marks] --> SHARED
+  IN3[Families and admissible states] --> SHARED
+  IN4[Hazards, factors, liquidity tiers] --> SHARED
+  SHARED --> MPOR[MPOR engine: close-out loss over margin period]
+  SHARED --> TERM[Terminal engine: factor copula, to-resolution loss]
+  MPOR --> IM[IM = max VaR, ES, jump, floor + add-ons]
+  TERM --> DIAG[Challenger diagnostics and stress]
+  MPOR --> DIV[Divergence D_a]
+  TERM --> DIV
+  DIV --> AMOD[Model-risk add-on A_model]
+  IM --> O1[Pre-trade budgets and fast bounds]
+  IM --> O2[PB margin schedule with attribution]
+  IM --> O3[Price and risk file]
+  IM --> O4[Backtests, sensitivity, trigger report]
+  IM --> O5[Collateral lock adjustments]
+```
+
+## 4. Margin engine outputs
 
 ```mermaid
 flowchart LR
-  IN1[Positions net + pending] --> E
-  IN2[Filtered fair marks] --> E
-  IN3[Families and admissible states] --> E
-  IN4[Hazards, factors, liquidity tiers] --> E
-  E[Margin engine: structural max loss, MPOR Monte Carlo, jump, add-ons, event ramp]
-  E --> O1[Pre-trade budgets and fast bounds]
-  E --> O2[PB margin schedule with attribution]
-  E --> O3[Price and risk file]
-  E --> O4[Backtests, sensitivity, trigger report]
+  SML[Structural max loss L_gross] --> CAP[Cap]
+  CORE["IM_core = max(VaR, kES, jump, floor)"] --> HYBRID[IM_hybrid = min L_gross, IM_core + add-ons]
+  ADDONS["A_liq + A_conc + A_oracle + A_model + A_event + A_APC"] --> HYBRID
+  CAP --> HYBRID
+  HYBRID --> RAMP["IM_event = (1-lambda) IM_hybrid + lambda L_gross"]
+  RAMP --> BUDGET[Pre-trade budgets]
+  RAMP --> SCHED[PB margin schedule]
+  RAMP --> LOCK[Collateral locks]
 ```
 
-## 4. Contract engine
+## 5. Contract engine
 
 ```mermaid
 flowchart LR
@@ -108,7 +129,7 @@ flowchart LR
   TRI -->|latent| LOG[Demand log]
 ```
 
-## 5. Marks and settlement
+## 6. Marks and settlement
 
 ```mermaid
 flowchart TB
@@ -120,12 +141,12 @@ flowchart TB
   XF --> VM[Variation margin]
   XF --> IM[Initial margin]
   XF --> PF[Price file]
-  SRC[Source publication] --> P1[Officer 1: propose, hash evidence] --> P2[Officer 2: confirm] --> DW[Dispute window] --> FIN[Final settlement] --> PB[PB cash settlement]
+  SRC[Source publication] --> P1[Officer 1: propose, hash evidence] --> P2[Officer 2: confirm] --> DW[Dispute window] --> FIN[Final settlement] --> PB[PB cash settlement / collateral payout]
   DW -->|dispute| CMT[Settlement committee] --> FIN
   DL[Deadline passed] --> FB[Fallback rule] --> FIN
 ```
 
-## 6. Deployment
+## 7. Deployment
 
 ```mermaid
 flowchart LR
@@ -141,10 +162,11 @@ flowchart LR
   end
   J --> J2
   SVC --> PBA[PB adapter]
+  SVC --> COLS[Collateral service]
   SVC --> ARM[ARM / surveillance]
 ```
 
-## 7. Fee engine
+## 8. Fee engine
 
 ```mermaid
 flowchart LR

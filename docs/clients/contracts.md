@@ -24,7 +24,9 @@ Positive quantity is long; negative is short. Maximum loss per contract:
 - Long at p: p × 100 (contract settles at 0)
 - Short at p: (1 − p) × 100 (contract settles at 1)
 
-Positions are margined futures-style: no premium is paid at trade time; gains and losses are settled daily through variation margin, and the position carries initial margin. See [Margin](margin.md).
+**PB-managed accounts:** margined futures-style — no premium at trade time; VM at each 8-hour window; IM from the margin engine. **Full-collateral accounts:** max loss locked at trade time; VM transfers at each window. See [Margin](margin.md).
+
+**Note:** the contract payout structure (binary vs measured, payout amount, settlement kind) may evolve. The architecture is designed to support alternative payout functions beyond binary yes/no — the `ContractSpec` and margin engine treat the payoff as a pluggable function of the settlement value.
 
 ## Symbols and identifiers
 

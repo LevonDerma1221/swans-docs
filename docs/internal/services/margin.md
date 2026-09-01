@@ -1,24 +1,23 @@
-# Margin service (Margin Framework v6 in the partner-CCP structure)
+# Margin service
 
-The V6 methodology was written for SWANS as clearing house. In the partner-CCP structure, the **model** is unchanged and its **outputs** are redirected: the clearing operations (default waterfall, guaranty fund, default engine, recovery tools) belong to the CCP; the venue keeps computation, budgets, files and the bilateral calculation-agent role.
+The V6 methodology computes margin for all account types. In PB-managed mode, SWANS is calculation agent under the CSA. In full-collateral mode, margin drives lock adjustments and VM transfers. The **model** is the same regardless of clearing mode.
 
-## Components (from V6 §22, mapped)
+## Components
 
-| V6 component | Where it lives now | Notes |
+| V6 component | Where it lives | Notes |
 |---|---|---|
-| Fair probability filter | **Venue** (settlement/marks service) | Official filtered mark for VM, IM, price file; family projection |
-| Probability model, resolution-intensity model, marked jump simulator, Monte Carlo engine | **Venue** (`libswansrisk`) | Mehdi's models behind `IPricingModel`, `ICalibrator`, `IMarginModel` |
-| Margin calculator | **Venue** (this service) | Produces IM, attribution, budgets, schedules, CCP parameter proposal |
-| VM engine | **Venue computes; CCP and GCM collect** | Venue publishes VM per account on filtered marks; CCP collects on its settlement price if it sets one **[decision 3]** |
-| Collateral engine | **CCP and GCM** | Venue never holds collateral |
-| Default engine | **CCP and GCM** | Venue suspends trading rights on notice |
-| Stress-resource control | **Venue**, reinterpreted | Account stress loss vs clearing-member limit → restrict risk-increasing orders |
-| Model governance | **Venue** | Backtests, sensitivity, validation, challenger models, audit trail; shared with CCP |
-| Participant simulator | **Venue** (Product A) | `POST /margin/simulate` |
+| Fair probability filter | Marks service | Official filtered mark for VM, IM, price file; family projection |
+| Probability model, resolution-intensity model, marked jump simulator, Monte Carlo engine | `libswansrisk` | Mehdi's models behind `IPricingModel`, `ICalibrator`, `IMarginModel` |
+| Margin calculator | This service | Produces IM, attribution, budgets, schedules |
+| VM engine | This service computes; PB collects or collateral service transfers | VM per account on filtered marks |
+| Collateral engine | PB (PB-managed) or collateral service (full-collateral) | |
+| Stress-resource control | This service | Account stress loss vs limits → restrict risk-increasing orders |
+| Model governance | This service + governance | Backtests, sensitivity, validation, challenger models, audit trail |
+| Participant simulator | This service | `POST /margin/simulate` |
 
 ## Computation
 
-Per account, per run (daily 17:00; intraday on triggers: mark move beyond threshold, event-ramp state change, concentration breach, VM-late signal from GCM):
+Per account, per run (at each VM window 00:00/08:00/16:00 UTC; intraday on triggers: mark move beyond threshold, event-ramp state change, concentration breach, VM-late signal):
 
 1. Load positions (net + pending), families, filtered marks `X_fair`, hedge positions (for reporting only).
 2. `L_gross` by family over admissible states.
@@ -28,25 +27,111 @@ Per account, per run (daily 17:00; intraday on triggers: mark move beyond thresh
 6. Add-ons: liquidity (phase 1 policy), concentration (`ζ·L_side·((c−c̄)⁺/c̄)²`), oracle, model risk, event ramp (`λ_event = max(λ_cal, λ_haz)`), APC.
 7. `IM = min(L_gross, IM_core + Σ A)`; then `IM_event` blend.
 8. Market-maker relief flags evaluated against LP criteria; withdrawn automatically on breach.
-9. Outputs with attribution.
+9. Two-engine comparison: terminal engine runs in parallel; divergence `D_a` recorded.
+10. Outputs with full attribution.
+
+## IM formula (from V6, formalized)
+
+```
+IM_core = max( VaR_MPOR_99%, κ·ES_MPOR_97.5%, IM_jump, IM_floor )
+
+A = A_liq + A_conc + A_oracle + A_model + A_event + A_APC
+
+IM_hybrid = min( L_gross, IM_core + A )
+
+IM_event = (1 - λ_event) · IM_hybrid + λ_event · L_gross
+```
+
+Every component is persisted and reported separately with its policy/version source.
+
+### Sign-sensitive jump-to-resolution
+
+```
+L¹_ak = [-Q_ak · M_k · (1 - X_k)]⁺    (loss from YES resolution)
+L⁰_ak = [Q_ak · M_k · X_k]⁺           (loss from NO resolution)
+```
+
+Resolution probabilities over the MPOR come from the marked-intensity model or conservative policy hazards. Correlated family resolution is simulated jointly.
+
+### Concentration add-on
+
+```
+C_ak = |Q_ak| / (OI_k + ε)
+A_conc_ak = ζ_k · L_side_ak · ((C_ak - c̄_k)⁺ / c̄_k)²
+A_conc_a = Σ_k A_conc_ak
+```
+
+### Anti-procyclicality (APC)
+
+Pre-funds part of the gap to a stressed/lookback margin state to reduce procyclical call cliffs. Each amount carries reason code, owner, effective period and approval record.
+
+## Variation margin
+
+At each VM window (00:00, 08:00, 16:00 UTC):
+
+```
+ΔV_a = V_a(t₁) - V_a(t₀)
+VM_due = [-ΔV_a]⁺
+VM_receivable = [ΔV_a]⁺
+```
+
+## Collateral equity and margin call (full-collateral mode)
+
+```
+E_a = C_eligible + VM_settled - Fees - Withdrawals
+R_a = IM_event + VM_due + Buffer
+MC_a = [R_a - E_a]⁺         (margin call amount)
+Excess_a = [E_a - R_a]⁺     (withdrawable subject to policy)
+```
+
+A positive `MC_a` creates or updates a margin call (see margin call lifecycle below).
+
+## Margin call lifecycle
+
+| State | Meaning |
+|---|---|
+| DRAFT | Calculation produced a candidate call; awaiting authorized release |
+| ISSUED | Firm obligation delivered to member; due-time clock active |
+| ACKNOWLEDGED | Member receipt confirmed; due time remains effective |
+| PARTIALLY_SATISFIED | Confirmed cash/collateral covers part of amount |
+| SATISFIED | Full obligation covered |
+| DISPUTED | Member raised dispute; follows dispute policy |
+| FAILED | Payment/custody attempt failed |
+| DEFAULT_ESCALATION | Deadline or governance trigger reached default-management state |
+| CANCELLED | Authorized replacement/reversal |
+
+Each transition records actor/system, timestamp, reason code, evidence and balance delta.
+
+## Netting layers (correctly named per CFTC terminology)
+
+| Layer | Mechanism | Status |
+|---|---|---|
+| 1. Same-contract netting | Aggregate trades into `Q_ak` within one margin account | Deterministic bookkeeping |
+| 2. Structural family netting | Evaluate mutually exclusive, nested or linked contracts over admissible terminal states `Y_g` | Exact payoff logic |
+| 3. Portfolio/spread margining (§39.13(g)(4)) | Jointly simulate related positions in approved group; common-factor diversification in portfolio loss distribution | Requires conceptual basis + statistical evidence |
+
+Cross-margining (§39.13(i)) is reserved for inter-organization programs and follows a separate approval path. Each cross-margin policy record contains: group ID, covered products/families, conceptual basis, dependency-model version, validation evidence/date, offset caps, effective dates and approval owner.
 
 ## Outputs
 
 | Output | Consumer | Frequency |
 |---|---|---|
 | `{account: IM, fast_bound, version, ts}` | Engine pre-trade stage | Every run and on fill |
-| Client margin schedule with add-on attribution | GCMs | Daily + intraday |
-| VM per account on filtered marks | GCMs, members | Daily + intraday |
-| CCP parameter proposal: per product IM long/short, scenario P&L arrays, family definitions, offset groups and stage, hazards, liquidity tiers, model version | CCP | Daily |
-| Price and risk file: filtered marks, IM, sensitivities, event-ramp state | Prime brokers, members | Daily |
-| CSA IM per account pair | Bilateral bridge | Daily |
-| Backtest (Kupiec, Christoffersen), sensitivity, trigger report; synthetic-price disclosure | CCP, GCMs, FCA | Monthly |
+| Margin schedule with add-on attribution | PBs (PB-managed accounts) | VM window + intraday |
+| VM per account on filtered marks | PBs, members, collateral service | VM window + intraday |
+| Price and risk file: filtered marks, IM, sensitivities, event-ramp state | PBs, members | VM window |
+| Backtest (Kupiec, Christoffersen), sensitivity, trigger report | PBs, FCA | Monthly |
+| Collateral lock adjustments | Collateral service (full-collateral accounts) | VM window |
+| Two-engine divergence report | Risk desk, model governance | Every official run |
 
 ## Budget
+
 `budget_available = ClearerLimits.max_swans_im − IM_current − reserved_open_orders`, where `reserved_open_orders` is the sum of incremental IM reserved at order acceptance (released on cancel/expiry, converted on fill). Fast bound for pre-trade: `qty × payout × max(p, 1−p)` (a strict upper bound on both structural loss and IM).
 
 ## Fee engine (v3)
-Same service, same per-fill inputs. Computes `f_j = max(f_min, B + R·(1−ρU) − D − M)` with state from: book liquidity score `L` (depth, spread, cancellation intensity, EWMA), time to event `τ`, account concentration by family `c_k`, pre-fill position for `U` (netted across related contracts and accounts), maker quality score `Q_maker` (uptime, spread, displayed size, realised adverse selection). Emits `fee_components` per fill to trades, drop copy and EOD fee file. Anti-gaming checks run on aggregate account activity per window.
+
+Same service, same per-fill inputs. Computes `f_j = max(f_min, B + R·(1−ρU) − D − M)` with state from: book liquidity score `L` (depth, spread, cancellation intensity, EWMA), time to event `τ`, account concentration by family `c_k`, pre-fill position for `U` (netted across related contracts and accounts), maker quality score `Q_maker` (uptime, spread, displayed size, realised adverse selection). Emits `fee_components` per fill to trades, drop copy and fee file. Anti-gaming checks run on aggregate account activity per window.
 
 ## Governance
-Parameter changes and offset-stage changes are versioned reference data approved by the risk committee, notified to the CCP and GCMs with notice periods. Model changes go through validation with challenger comparison before production.
+
+Parameter changes and offset-stage changes are versioned reference data approved by the risk committee, notified to PBs and members with notice periods. Model changes go through validation with challenger comparison before production. Every model has a semantic version, owner, approved scope, validation status, effective date, code commit/build hash and rollback version. See [Model governance](../governance.md).
