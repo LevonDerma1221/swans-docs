@@ -1,4 +1,4 @@
-# Messaging, journals and recovery
+# Messaging and journals
 
 ## Transport
 - **Aeron** (UDP unicast/multicast; IPC on one host) for the order path and market data.
@@ -14,12 +14,7 @@
 Future (when margin offered): `risk.budget`, `pb.limits`, `pb.responses`.
 
 ## Journals
-Every service has an append-only, memory-mapped, checksummed journal of its inputs (engine: inputs and outputs). 1 GB segments, configurable fsync. State is a pure function of the journal. The engine assigns `SeqNum` to every input **before** processing; outputs carry the input `SeqNum`.
-
-Pre-trade decisions depend on collateral balance snapshots that change asynchronously; the engine journals the balance **version** used for each decision so replay is deterministic.
-
-## Snapshots and recovery
-Snapshot every M minutes; recover = load snapshot, replay journal to head, reconnect, resume each subscribed stream from the last acknowledged `SeqNum`. Publishers never block; slow consumers fall back to snapshot + replay.
+Every service has an append-only, checksummed journal of its inputs. State is a pure function of the journal — any service can recover by replaying from the last snapshot.
 
 ## Retention
 Orders, trades, FIX messages: 7 years **[confirm RTS 24/25]**.
