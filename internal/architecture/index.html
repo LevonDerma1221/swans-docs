@@ -1719,25 +1719,23 @@
 </code></pre></div>
 <p>Pre-trade risk runs as a <strong>stage inside the engine shard process</strong> (no IPC hop), as a separate module. It checks both PB limits/margin budget (PB-managed accounts) and available balance (full-collateral accounts).</p>
 <h2 id="collateral-service">Collateral service</h2>
-<p>Manages member balances for full-collateral accounts. See <a href="../services/collateral/">Collateral service</a>.</p>
+<p>Manages member balances. See <a href="../services/collateral/">Collateral service</a>.</p>
 <ul>
-<li>Tracks deposits, locked collateral, available balance, VM transfers, settlement payouts, withdrawals</li>
+<li>Tracks deposits, locked collateral, available balance, settlement payouts, withdrawals</li>
 <li>Pushes balance snapshots to the engine pre-trade stage via <code>collateral.balances</code></li>
 <li>On trade: locks max loss from both sides</li>
-<li>On VM window (every 8 hours): transfers mark-to-market changes between accounts</li>
 <li>On settlement: distributes payout, releases locks</li>
+<li>No variation margin — locks stay fixed between trade and settlement</li>
 </ul>
-<p>Runs alongside the PB adapter — accounts can be PB-managed or fully collateralised.</p>
 <h2 id="clearing-layer">Clearing layer</h2>
-<p><strong>Full-collateral (default):</strong> the collateral service handles everything — balance checks, locks, VM transfers, settlement payouts. No external dependency.</p>
-<p><strong>PB adapter (optional):</strong> for PB-managed accounts, sends trade notifications (FIX drop copy), margin schedules, price/risk files, and settlement values to PBs. Receives PB limit updates. Architecturally identical to a future CCP adapter — swap the adapter, keep the core.</p>
+<p><strong>Full collateral (launch).</strong> The collateral service handles everything: balance checks, locks, settlement payouts. No external dependency. No VM — locks stay fixed until settlement.</p>
+<p><strong>Future margin mode.</strong> How to offer capital efficiency (margin/leverage) is an open design question. A PB adapter or CCP adapter could be added without changing the core system.</p>
 <h2 id="trading-hours">Trading hours</h2>
 <p><strong>24/7 continuous trading.</strong> The matching engine runs without interruption. There is no opening or closing.</p>
 <ul>
-<li><strong>VM windows:</strong> 00:00, 08:00, 16:00 UTC. Marks are fixed at each window; VM is computed and settled.</li>
 <li><strong>Settlement determination:</strong> happens when the source publishes, regardless of time. Two-officer process operates during business hours; automated sources can trigger at any time.</li>
 <li><strong>Maintenance:</strong> rolling hot-deploy; no planned downtime windows. If maintenance requires a halt, 24-hour notice to members.</li>
-<li><strong>Reference price:</strong> the most recent VM window mark (not "daily settle").</li>
+<li><strong>Reference price:</strong> filtered fair mark (not "daily settle").</li>
 </ul>
 <h2 id="deployment">Deployment</h2>
 <ul>

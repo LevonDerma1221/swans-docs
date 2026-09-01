@@ -511,43 +511,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#two-modes" class="md-nav__link">
+  <a href="#full-collateral-launch-model" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Two modes
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#full-collateral-mode" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Full-collateral mode
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#pb-managed-mode-optional" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        PB-managed mode (optional)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#settlement-flow" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Settlement flow
+        Full collateral (launch model)
       
     </span>
   </a>
@@ -559,6 +526,17 @@
     <span class="md-ellipsis">
       
         Default handling
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#future-capital-efficiency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Future: capital efficiency
       
     </span>
   </a>
@@ -1626,42 +1604,19 @@
 
 
 <h1 id="clearing-and-collateral">Clearing and collateral</h1>
-<h2 id="two-modes">Two modes</h2>
-<p>SWANS supports two clearing modes, configurable per account. Both can run simultaneously.</p>
+<h2 id="full-collateral-launch-model">Full collateral (launch model)</h2>
+<p>Members deposit cash. SWANS locks max loss at trade time. At settlement, payout is distributed and locks released. No variation margin, no margin calls, no adjustments between trade and settlement.</p>
 <table>
 <thead>
 <tr>
-<th>Mode</th>
-<th>How it works</th>
-<th>Who holds cash</th>
+<th>Step</th>
+<th>What happens</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>Full collateral</strong></td>
-<td>Members deposit cash. SWANS locks max loss per trade. VM transferred every 8 hours. No PB needed.</td>
-<td>SWANS (via custodian)</td>
-</tr>
-<tr>
-<td><strong>PB-managed</strong></td>
-<td>Bilateral with prime broker. SWANS is calculation agent. PB holds collateral under CSA.</td>
-<td>Prime broker</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Full collateral is the day-one default.</strong> It works without any PB integration — simpler to launch and easier to onboard. PB-managed mode adds capital efficiency for members who have a prime broker relationship.</p>
-<h2 id="full-collateral-mode">Full-collateral mode</h2>
-<table>
-<thead>
-<tr>
-<th>Aspect</th>
-<th>How it works</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Cash custody</strong></td>
-<td>Member deposits to a CASS client money account held via a regulated custodian</td>
+<td><strong>Deposit</strong></td>
+<td>Member wires cash to CASS client money account via regulated custodian</td>
 </tr>
 <tr>
 <td><strong>Pre-trade</strong></td>
@@ -1669,46 +1624,34 @@
 </tr>
 <tr>
 <td><strong>On trade</strong></td>
-<td>Max loss locked from both sides; total locked = payout x qty</td>
+<td>Max loss locked from both buyer and seller</td>
 </tr>
 <tr>
-<td><strong>VM windows</strong></td>
-<td>Every 8 hours (00:00, 08:00, 16:00 UTC): mark-to-market transfers, locks adjusted</td>
+<td><strong>Between trade and settlement</strong></td>
+<td>Nothing. Locks stay fixed.</td>
 </tr>
 <tr>
 <td><strong>Settlement</strong></td>
-<td>Payout distributed from locked funds; locks released</td>
-</tr>
-<tr>
-<td><strong>Margin call</strong></td>
-<td>If balance can't cover adjusted lock after VM, risk-increasing orders blocked</td>
+<td>Payout distributed, locks released</td>
 </tr>
 <tr>
 <td><strong>Withdrawal</strong></td>
-<td>Only available balance can be withdrawn</td>
+<td>Only available (unlocked) balance can be withdrawn</td>
 </tr>
 </tbody>
 </table>
-<h2 id="pb-managed-mode-optional">PB-managed mode (optional)</h2>
-<p>For members with a PB:</p>
-<ol>
-<li>Sign a CSA with a prime broker, naming SWANS margin engine as calculation agent.</li>
-<li>PB sets limits through the PB API: max order size, notional limits, margin budget, kill switch.</li>
-<li>SWANS sends trade notifications (FIX drop copy) and margin schedules to the PB.</li>
-<li>PB collects margin from member under the CSA.</li>
-</ol>
-<p>SWANS is not in the credit chain. If a member defaults, the PB manages the close-out.</p>
-<h2 id="settlement-flow">Settlement flow</h2>
-<ol>
-<li>SWANS determines settlement value (two-officer process, dispute window).</li>
-<li><strong>Full-collateral:</strong> collateral service distributes payout and releases locks.</li>
-<li><strong>PB-managed:</strong> settlement value sent to PB for cash settlement with member.</li>
-</ol>
+<p>This is deliberately simple. There is no credit exposure — the full payout is always locked.</p>
 <h2 id="default-handling">Default handling</h2>
-<p><strong>Full-collateral:</strong> max loss is always locked, so there is no credit exposure. If a member can't meet a VM call, risk-increasing orders are blocked but positions remain.</p>
-<p><strong>PB-managed:</strong> handled under the PB's CSA. SWANS suspends trading on notice from the PB.</p>
+<p>Max loss is always locked, so there is no default risk. If a member wants to exit a position before settlement, they trade out of it on the book.</p>
+<h2 id="future-capital-efficiency">Future: capital efficiency</h2>
+<p>Locking max loss is capital-intensive. We want to explore ways to offer margin (partial collateral with leverage) without necessarily going through a prime broker. This is an open design question — see <a href="../../internal/open-decisions/">Open decisions</a>.</p>
+<p>Options under consideration:
+- SWANS-managed margin with VM
+- Third-party margin provider
+- Prime broker integration
+- Other structures</p>
 <h2 id="future-ccp-clearing">Future: CCP clearing</h2>
-<p>When a CCP partner is secured, the PB adapter can be swapped for a CCP adapter — no changes to the core system.</p>
+<p>When a CCP partner is secured, trades can be submitted for novation. The core matching and settlement systems remain identical.</p>
 
 
 

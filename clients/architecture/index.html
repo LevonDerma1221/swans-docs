@@ -1604,22 +1604,19 @@
 
 
 <h1 id="architecture">Architecture</h1>
-<p>SWANS is a trading venue. It matches orders, computes margin, determines settlement, and publishes data.</p>
+<p>SWANS is a trading venue. It matches orders, determines settlement, publishes data, and manages collateral.</p>
 <h2 id="clearing-model">Clearing model</h2>
-<p>Two modes, per account:</p>
-<div class="highlight"><pre><span></span><code>Full collateral (day-one default):
-  Member deposits cash ──▶ SWANS locks max loss per trade ──▶ VM every 8 hours ──▶ settlement payout
-
-PB-managed (optional upgrade):
-  Member ──CSA──▶ Prime broker ◀── margin schedule ── SWANS (calculation agent)
+<p><strong>Full collateral.</strong> Members deposit cash. SWANS locks max loss per trade. At settlement, payout is distributed. No VM, no margin calls, no adjustments between trade and settlement.</p>
+<div class="highlight"><pre><span></span><code>Member deposits cash ──▶ SWANS locks max loss per trade ──▶ settlement payout
 </code></pre></div>
-<p>Full collateral works without PB integration. PB-managed mode adds capital efficiency. Both can run simultaneously. See <a href="../clearing/">Clearing</a>.</p>
+<p>How to offer margin (capital efficiency) is an open design question — see <a href="../clearing/">Clearing</a>.</p>
 <h2 id="what-swans-does">What SWANS does</h2>
 <ul>
 <li>Operates the order book, matches trades, publishes market data</li>
-<li>Runs pre-trade risk on every order (balance check or PB limits)</li>
-<li>Computes margin and publishes margin schedules</li>
+<li>Runs pre-trade risk on every order (balance check)</li>
+<li>Holds collateral via regulated custodian, locks max loss, distributes payouts</li>
 <li>Determines settlement outcomes against documented sources</li>
+<li>Computes risk analytics and margin numbers (shadow mode at launch, production when margin is offered)</li>
 <li>Reports to FCA and runs surveillance</li>
 </ul>
 <h2 id="sequence-numbers">Sequence numbers</h2>

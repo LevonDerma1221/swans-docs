@@ -1183,21 +1183,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#modes" class="md-nav__link">
+  <a href="#how-it-works" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Modes
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#data-model" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Data model
+        How it works
       
     </span>
   </a>
@@ -1227,17 +1216,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#variation-margin-rolling-every-8-hours" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Variation margin (rolling, every 8 hours)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#on-settlement" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1253,6 +1231,17 @@
     <span class="md-ellipsis">
       
         Deposits and withdrawals
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data model
       
     </span>
   </a>
@@ -1282,10 +1271,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#api" class="md-nav__link">
+  <a href="#future-capital-efficiency" class="md-nav__link">
     <span class="md-ellipsis">
       
-        API
+        Future: capital efficiency
       
     </span>
   </a>
@@ -1670,94 +1659,53 @@
 
 
 <h1 id="collateral-service">Collateral service</h1>
-<p><strong>Owns:</strong> member balances, collateral locks, VM transfers, settlement payouts, withdrawals. This is the full-collateral mode — an alternative to PB-held collateral where SWANS manages funds directly via a regulated custodian or FCA CASS client money account.</p>
-<h2 id="modes">Modes</h2>
-<p>The system supports two collateral modes per account, configured in reference data:</p>
-<table>
-<thead>
-<tr>
-<th>Mode</th>
-<th>Who holds cash</th>
-<th>Pre-trade check</th>
-<th>Collateral service role</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>PBManaged</code></td>
-<td>Prime broker</td>
-<td>Margin budget (from PB)</td>
-<td>None — PB handles everything</td>
-</tr>
-<tr>
-<td><code>FullCollateral</code></td>
-<td>SWANS (via custodian/CASS account)</td>
-<td>Balance check: sufficient funds to cover max loss</td>
-<td>Active — manages all flows</td>
-</tr>
-</tbody>
-</table>
-<p>Both modes can run simultaneously. Some accounts use a PB; others are fully collateralised.</p>
-<h2 id="data-model">Data model</h2>
-<div class="highlight"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">CollateralAccount</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">AccountId</span><span class="w"> </span><span class="n">account</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">int64_t</span><span class="w"> </span><span class="n">balance_minor</span><span class="p">;</span><span class="w">           </span><span class="c1">// total deposited</span>
-<span class="w">    </span><span class="kt">int64_t</span><span class="w"> </span><span class="n">locked_minor</span><span class="p">;</span><span class="w">            </span><span class="c1">// locked as collateral for open positions and orders</span>
-<span class="w">    </span><span class="kt">int64_t</span><span class="w"> </span><span class="n">available_minor</span><span class="p">;</span><span class="w">         </span><span class="c1">// balance - locked (what can be withdrawn or used for new trades)</span>
-<span class="w">    </span><span class="kt">int64_t</span><span class="w"> </span><span class="n">vm_cumulative_minor</span><span class="p">;</span><span class="w">     </span><span class="c1">// net VM transferred to/from this account</span>
-<span class="w">    </span><span class="n">Currency</span><span class="w"> </span><span class="n">ccy</span><span class="p">;</span>
-<span class="w">    </span><span class="n">Timestamp</span><span class="w"> </span><span class="n">as_of</span><span class="p">;</span>
-<span class="p">};</span>
-
-<span class="k">struct</span><span class="w"> </span><span class="nc">CollateralLock</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">AccountId</span><span class="w"> </span><span class="n">account</span><span class="p">;</span>
-<span class="w">    </span><span class="n">TradeId</span><span class="w"> </span><span class="n">trade</span><span class="p">;</span><span class="w">                   </span><span class="c1">// or OrderId for order reservations</span>
-<span class="w">    </span><span class="n">InstrumentId</span><span class="w"> </span><span class="n">instrument</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">int64_t</span><span class="w"> </span><span class="n">amount_minor</span><span class="p">;</span><span class="w">            </span><span class="c1">// max loss for this side of the trade</span>
-<span class="w">    </span><span class="n">Timestamp</span><span class="w"> </span><span class="n">locked_at</span><span class="p">;</span>
-<span class="p">};</span>
-
-<span class="k">struct</span><span class="w"> </span><span class="nc">CollateralTransfer</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="kt">uint64_t</span><span class="w"> </span><span class="n">transfer_id</span><span class="p">;</span>
-<span class="w">    </span><span class="n">AccountId</span><span class="w"> </span><span class="n">from_account</span><span class="p">;</span>
-<span class="w">    </span><span class="n">AccountId</span><span class="w"> </span><span class="n">to_account</span><span class="p">;</span><span class="w">            </span><span class="c1">// or SETTLEMENT for payouts</span>
-<span class="w">    </span><span class="kt">int64_t</span><span class="w"> </span><span class="n">amount_minor</span><span class="p">;</span>
-<span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="nc">Reason</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="kt">uint8_t</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">VM</span><span class="p">,</span><span class="w"> </span><span class="n">Settlement</span><span class="p">,</span><span class="w"> </span><span class="n">Deposit</span><span class="p">,</span><span class="w"> </span><span class="n">Withdrawal</span><span class="p">,</span><span class="w"> </span><span class="n">FeePayment</span><span class="w"> </span><span class="p">};</span>
-<span class="w">    </span><span class="n">Timestamp</span><span class="w"> </span><span class="n">ts</span><span class="p">;</span>
-<span class="p">};</span>
-</code></pre></div>
+<p><strong>Owns:</strong> member balances, collateral locks, settlement payouts, withdrawals. SWANS manages funds directly via a regulated custodian or FCA CASS client money account.</p>
+<h2 id="how-it-works">How it works</h2>
+<p>Full collateral is simple: lock max loss at trade time, release and pay out at settlement. No variation margin, no margin calls, no adjustments in between.</p>
 <h2 id="pre-trade-balance-check">Pre-trade balance check</h2>
-<p>For <code>FullCollateral</code> accounts, the engine's pre-trade stage adds a check before the margin budget check:</p>
-<div class="highlight"><pre><span></span><code>max_loss = (side == Buy) ? price * payout * qty    // buy: lose if settles at 0
-                         : (1 - price) * payout * qty  // sell: lose if settles at 1
+<p>The engine's pre-trade stage checks balance before matching:</p>
+<div class="highlight"><pre><span></span><code>max_loss = (side == Buy) ? price * payout * qty
+                         : (1 - price) * payout * qty
 
 if (account.available &lt; max_loss) reject with INSUFFICIENT_BALANCE
 </code></pre></div>
-<p>This runs inside the engine shard (no RPC) using a cached balance snapshot. The collateral service pushes balance updates on the <code>collateral.balances</code> stream; the engine caches the latest version.</p>
+<p>Runs inside the engine shard (no RPC) using a cached balance snapshot. The collateral service pushes balance updates on the <code>collateral.balances</code> stream.</p>
 <h2 id="on-trade">On trade</h2>
 <ol>
 <li>Lock <code>max_loss</code> from buyer's available balance.</li>
 <li>Lock <code>max_loss</code> from seller's available balance.</li>
 <li>Total locked per trade = buyer max loss + seller max loss = payout * qty (always exactly the full payout).</li>
 </ol>
-<h2 id="variation-margin-rolling-every-8-hours">Variation margin (rolling, every 8 hours)</h2>
-<p>At each VM window (00:00, 08:00, 16:00 UTC):
-1. Compute mark-to-market change since last VM window per account.
-2. Transfer VM between accounts: winning side's <code>available</code> increases, losing side's <code>available</code> decreases.
-3. Adjust locks: as the mark moves, the max loss changes, so locks are recalculated.
-4. If an account's balance cannot cover the adjusted lock, the account enters <strong>margin call</strong> status: risk-increasing orders are blocked until the member deposits more funds or reduces positions.</p>
 <h2 id="on-settlement">On settlement</h2>
 <ol>
 <li>Contract settles at value V (0 or 1 for binary, [0,1] for measured).</li>
 <li>Buyer receives: V * payout * qty. Seller receives: (1-V) * payout * qty.</li>
-<li>Locks released. Transfers executed atomically. Collateral freed.</li>
+<li>Locks released. Transfers executed atomically.</li>
 </ol>
 <h2 id="deposits-and-withdrawals">Deposits and withdrawals</h2>
 <ul>
-<li><strong>Deposit:</strong> member wires cash to the CASS client money account. Bank confirms receipt. Collateral service credits <code>balance</code>.</li>
-<li><strong>Withdrawal:</strong> member requests via REST API. Service checks <code>available &gt;= withdrawal_amount</code>. Instructs bank to wire. Debits <code>balance</code>.</li>
-<li>Deposits and withdrawals are journaled and reconciled daily against the bank statement.</li>
+<li><strong>Deposit:</strong> member wires cash to the CASS client money account. Bank confirms receipt. Collateral service credits balance.</li>
+<li><strong>Withdrawal:</strong> member requests via API. Service checks <code>available &gt;= amount</code>. Instructs bank to wire. Debits balance.</li>
+<li>Deposits and withdrawals are journaled and reconciled against the bank statement.</li>
 </ul>
+<h2 id="data-model">Data model</h2>
+<div class="highlight"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">CollateralAccount</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">AccountId</span><span class="w"> </span><span class="n">account</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int64_t</span><span class="w"> </span><span class="n">balance_minor</span><span class="p">;</span><span class="w">           </span><span class="c1">// total deposited</span>
+<span class="w">    </span><span class="kt">int64_t</span><span class="w"> </span><span class="n">locked_minor</span><span class="p">;</span><span class="w">            </span><span class="c1">// locked for open positions</span>
+<span class="w">    </span><span class="kt">int64_t</span><span class="w"> </span><span class="n">available_minor</span><span class="p">;</span><span class="w">         </span><span class="c1">// balance - locked</span>
+<span class="w">    </span><span class="n">Currency</span><span class="w"> </span><span class="n">ccy</span><span class="p">;</span>
+<span class="w">    </span><span class="n">Timestamp</span><span class="w"> </span><span class="n">as_of</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="k">struct</span><span class="w"> </span><span class="nc">CollateralLock</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">AccountId</span><span class="w"> </span><span class="n">account</span><span class="p">;</span>
+<span class="w">    </span><span class="n">TradeId</span><span class="w"> </span><span class="n">trade</span><span class="p">;</span>
+<span class="w">    </span><span class="n">InstrumentId</span><span class="w"> </span><span class="n">instrument</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int64_t</span><span class="w"> </span><span class="n">amount_minor</span><span class="p">;</span><span class="w">            </span><span class="c1">// max loss for this side</span>
+<span class="w">    </span><span class="n">Timestamp</span><span class="w"> </span><span class="n">locked_at</span><span class="p">;</span>
+<span class="p">};</span>
+</code></pre></div>
 <h2 id="streams">Streams</h2>
 <table>
 <thead>
@@ -1771,12 +1719,12 @@ if (account.available &lt; max_loss) reject with INSUFFICIENT_BALANCE
 <tr>
 <td><code>collateral.balances</code></td>
 <td>out</td>
-<td>Balance updates per account (available, locked) — consumed by engine pre-trade</td>
+<td>Balance updates per account — consumed by engine pre-trade</td>
 </tr>
 <tr>
 <td><code>collateral.transfers</code></td>
 <td>out</td>
-<td>VM, settlement, deposit, withdrawal events — consumed by reconciliation</td>
+<td>Settlement, deposit, withdrawal events — consumed by reconciliation</td>
 </tr>
 <tr>
 <td><code>trades</code></td>
@@ -1791,31 +1739,9 @@ if (account.available &lt; max_loss) reject with INSUFFICIENT_BALANCE
 </tbody>
 </table>
 <h2 id="storage">Storage</h2>
-<p>Append-only journal + PostgreSQL projection (same pattern as all other services).</p>
-<h2 id="api">API</h2>
-<table>
-<thead>
-<tr>
-<th>Endpoint</th>
-<th>Purpose</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>GET /v1/accounts/{account}/balance</code></td>
-<td>Current balance, locked, available</td>
-</tr>
-<tr>
-<td><code>POST /v1/accounts/{account}/withdraw</code></td>
-<td>Request withdrawal</td>
-</tr>
-<tr>
-<td><code>GET /v1/accounts/{account}/transfers?date=</code></td>
-<td>Transfer history</td>
-</tr>
-</tbody>
-</table>
-<p>Deposits are not API-initiated — they come from bank confirmations.</p>
+<p>Append-only journal + PostgreSQL projection.</p>
+<h2 id="future-capital-efficiency">Future: capital efficiency</h2>
+<p>Full collateral locks max loss, which is capital-intensive. How to offer margin (partial collateral with leverage) is an open design question — it does not have to involve a prime broker. See <a href="../../open-decisions/">Open decisions</a>.</p>
 
 
 

@@ -301,10 +301,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#2-trade-lifecycle" class="md-nav__link">
+  <a href="#2-trade-lifecycle-full-collateral" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Trade lifecycle
+        2. Trade lifecycle (full collateral)
       
     </span>
   </a>
@@ -1646,45 +1646,33 @@
     GW --&gt; ENG[Pre-trade + matching engine]
     ENG --&gt;|executions| TR[Trades]
     ENG --&gt;|prices| MD[Market data]
-    TR --&gt; POS[Positions]
-    POS --&gt; RISK[Risk engine]
-    RISK --&gt; MGN[Margin service]
-    MGN --&gt;|budgets| ENG
-    MK[Marks] --&gt; MGN
-    MK --&gt; SET[Settlement]
+    TR --&gt; COL[Collateral service]
+    COL --&gt;|balances| ENG
+    MK[Marks] --&gt; SET[Settlement]
+    SET --&gt; COL
   end
 
   MD --&gt;|market data| MEM
-  MGN --&gt;|margin schedule, price file| PB[Prime brokers]
-  TR --&gt;|drop copy| PB
-  SET --&gt;|settlement value| PB
-  PB --&gt;|limits| ENG
-  COL[Collateral service] --&gt;|balances| ENG
-  SET --&gt; COL
-  MGN --&gt; COL</code></pre>
-<h2 id="2-trade-lifecycle">2. Trade lifecycle</h2>
+  COL --&gt;|lock max loss, settle payouts| MEM
+  RISK[Risk engine] --&gt;|analytics| MEM</code></pre>
+<h2 id="2-trade-lifecycle-full-collateral">2. Trade lifecycle (full collateral)</h2>
 <pre class="mermaid"><code>sequenceDiagram
-  participant F as Fund
-  participant GW as SWANS gateway
-  participant ENG as SWANS engine
-  participant P as Prime broker
+  participant M as Member
+  participant S as SWANS
 
-  F-&gt;&gt;GW: NewOrderSingle (FIX)
-  GW-&gt;&gt;ENG: Pre-trade risk check
-  ENG--&gt;&gt;GW: Accepted
-  Note over ENG: Match with resting order
-  GW--&gt;&gt;F: ExecutionReport (fill)
-  ENG-&gt;&gt;P: TradeCaptureReport (drop copy)
-  ENG-&gt;&gt;P: Updated margin schedule
+  M-&gt;&gt;S: Deposit cash
+  S--&gt;&gt;M: Balance confirmed
 
-  loop Every 8 hours (VM window)
-    ENG-&gt;&gt;P: Filtered marks + VM + margin schedule
-    P-&gt;&gt;F: VM settlement / margin call
-  end
+  M-&gt;&gt;S: Order (FIX)
+  S-&gt;&gt;S: Balance check (available &gt;= max loss)
+  Note over S: Match with resting order
+  S--&gt;&gt;M: Execution report (fill)
+  Note over S: Max loss locked from both sides
 
-  Note over ENG: Source publishes, two-officer determination
-  ENG-&gt;&gt;P: Final settlement value
-  P-&gt;&gt;F: Cash settlement</code></pre>
+  Note over S: Time passes — no adjustments, no VM
+
+  Note over S: Source publishes, two-officer determination
+  S--&gt;&gt;M: Settlement: payout distributed, locks released</code></pre>
 <h2 id="3-two-engine-risk-architecture">3. Two-engine risk architecture</h2>
 <pre class="mermaid"><code>flowchart LR
   subgraph Inputs
@@ -1705,12 +1693,12 @@
   FAM --&gt; MPOR
   FAM --&gt; TERM
 
-  MPOR --&gt;|IM| OUT[Margin schedule]
+  MPOR --&gt;|IM| OUT[Margin numbers]
   MPOR --&gt; DIV
   TERM --&gt; DIV[Divergence check]
   TERM --&gt;|diagnostics| STRESS[Stress and validation]
   DIV --&gt;|above threshold| AMOD[Model-risk add-on]</code></pre>
-<p>The MPOR engine is authoritative for clearing IM. The terminal engine is a standing challenger. Both share the same factor state and calibration; divergence is diagnostic only under aligned comparison (the comparable-run rule).</p>
+<p>The MPOR engine is authoritative for clearing IM. The terminal engine is a standing challenger. At launch, the risk engine runs in shadow mode (analytics only). It becomes production when margin is offered.</p>
 <h2 id="4-margin-formula">4. Margin formula</h2>
 <pre class="mermaid"><code>flowchart LR
   VaR[VaR 99%] --&gt; CORE
@@ -1722,7 +1710,7 @@
   ADD[Add-ons] --&gt; HYBRID["IM = min(L_gross, IM_core + A)"]
 
   HYBRID --&gt; FINAL["Event ramp blend to L_gross"]
-  FINAL --&gt; SCHED[Margin schedule]</code></pre>
+  FINAL --&gt; OUT[Margin output]</code></pre>
 <h2 id="5-contract-engine">5. Contract engine</h2>
 <pre class="mermaid"><code>flowchart LR
   SRC[Source calendars] --&gt; SCAN[Scan and surface]
@@ -1750,8 +1738,7 @@
   M --&gt; COMB
   COMB --&gt; FAIR[Fair mark]
 
-  FAIR --&gt; VM[VM]
-  FAIR --&gt; IM[IM]
+  FAIR --&gt; IM[Risk analytics]
   FAIR --&gt; PF[Price file]</code></pre>
 <pre class="mermaid"><code>flowchart LR
   SRC[Source publishes] --&gt; O1[Officer 1 proposes]
@@ -1774,7 +1761,6 @@
   end
 
   J --&gt;|shipped| WS
-  SVC --&gt; PBA[PB adapter]
   SVC --&gt; COL[Collateral]
   SVC --&gt; ARM[Reporting]</code></pre>
 

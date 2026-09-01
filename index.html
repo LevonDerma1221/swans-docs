@@ -1618,44 +1618,21 @@
 <h2 id="system-at-a-glance">System at a glance</h2>
 <div class="highlight"><pre><span></span><code>Members ──FIX──▶ Gateway ──▶ Engine (pre-trade + matching) ──▶ Market data ──▶ Members
                                         │
-                                        ├──▶ Trades ──▶ Collateral service (full-collateral mode)
-                                        ├──▶ Trades ──▶ PB adapter (optional, PB-managed mode)
-                                        └──▶ Drop copy
+                                        ├──▶ Trades ──▶ Collateral service (lock max loss)
+                                        └──▶ Settlement ──▶ Collateral service (distribute payout)
 
-Margin engine    ──▶ balance checks / locks (full-collateral)
-                 ──▶ PB margin schedule (PB-managed)
-Settlement       ──▶ collateral payout or PB settlement value
+Margin engine    ──▶ risk analytics, price file (shadow mode at launch)
 </code></pre></div>
 <h2 id="clearing-model">Clearing model</h2>
-<p>Two modes, configurable per account:</p>
-<table>
-<thead>
-<tr>
-<th>Mode</th>
-<th>How it works</th>
-<th>Who holds cash</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Full collateral</strong></td>
-<td>Members deposit cash. SWANS locks max loss per trade. VM every 8 hours. No PB needed.</td>
-<td>SWANS (via custodian)</td>
-</tr>
-<tr>
-<td><strong>PB-managed</strong></td>
-<td>Bilateral with prime brokers. SWANS is calculation agent. PB holds collateral under CSA.</td>
-<td>Prime broker</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Full collateral is the day-one default.</strong> PB mode adds capital efficiency once PBs are onboarded. CCP clearing is a future upgrade path.</p>
+<p><strong>Full collateral at launch.</strong> Members deposit cash. SWANS locks max loss at trade time. At settlement, payout is distributed. No variation margin, no margin calls, no adjustments in between. Simple.</p>
+<p>How to offer margin (capital efficiency without locking full max loss) is an open design question. See <a href="clients/clearing/">Clearing</a> and <a href="internal/open-decisions/">Open decisions</a>.</p>
 <h2 id="trading-hours">Trading hours</h2>
-<p><strong>24/7 continuous trading.</strong> No close. VM windows every 8 hours (00:00, 08:00, 16:00 UTC). Settlement determination happens when sources publish.</p>
+<p><strong>24/7 continuous trading.</strong> No close. Settlement determination happens when sources publish.</p>
 <h2 id="contract-economics">Contract economics</h2>
 <ul>
 <li>Price in [0.005, 0.995], tick = 0.005, 200 price levels</li>
 <li>Payout: 100 units (GBP, USD or EUR), minimum notional $100</li>
+<li>Full collateral: max loss locked at trade time</li>
 <li>One order book per contract in yes-space</li>
 </ul>
 <p><strong>Note:</strong> the contract structure (payout function, amount, settlement kind, funding mechanics) is not final and may change. The architecture treats the payoff as a pluggable function — see <a href="internal/open-decisions/">Open decisions #2</a>.</p>
@@ -1682,11 +1659,11 @@ Settlement       ──▶ collateral payout or PB settlement value
 </tr>
 <tr>
 <td><a href="clients/clearing/">Clearing and collateral</a></td>
-<td>Full-collateral and PB-managed modes</td>
+<td>Full collateral and future margin</td>
 </tr>
 <tr>
 <td><a href="clients/margin/">Margin</a></td>
-<td>Margin methodology and outputs</td>
+<td>Margin methodology (shadow mode at launch)</td>
 </tr>
 <tr>
 <td><a href="clients/fees/">Fees</a></td>

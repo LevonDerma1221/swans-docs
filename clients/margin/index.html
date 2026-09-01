@@ -69,7 +69,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#margin-and-collateral" class="md-skip">
+        <a href="#margin" class="md-skip">
           Skip to content
         </a>
       
@@ -539,10 +539,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#collateral-modes" class="md-nav__link">
+  <a href="#launch-full-collateral-margin-in-shadow-mode" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Collateral modes
+        Launch: full collateral, margin in shadow mode
       
     </span>
   </a>
@@ -576,28 +576,6 @@
     <span class="md-ellipsis">
       
         Launch posture
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#variation-margin" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Variation margin
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#margin-call-lifecycle" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Margin call lifecycle
       
     </span>
   </a>
@@ -1647,37 +1625,10 @@
 
 
 
-<h1 id="margin-and-collateral">Margin and collateral</h1>
-<h2 id="collateral-modes">Collateral modes</h2>
-<p>SWANS supports two modes per account:</p>
-<table>
-<thead>
-<tr>
-<th>Mode</th>
-<th>How margin works</th>
-<th>Who holds cash</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>PB-managed</strong></td>
-<td>Futures-style margining. Nothing paid at trade time; VM settled at each window; IM from the margin engine. SWANS is calculation agent under the CSA.</td>
-<td>Prime broker</td>
-</tr>
-<tr>
-<td><strong>Full collateral</strong></td>
-<td>Max loss locked at trade time. VM transfers at each window. No margin engine dependency for pre-trade.</td>
-<td>SWANS (via custodian)</td>
-</tr>
-</tbody>
-</table>
-<pre class="mermaid"><code>flowchart LR
-  E[Margin engine] --&gt;|schedule| PB[Prime broker]
-  E --&gt;|budget| PT[Pre-trade risk]
-  E --&gt;|locks| COL[Collateral service]
-  E --&gt;|price file| PB
-  PB --&gt; F[Fund]
-  COL --&gt;|balance check| PT</code></pre>
+<h1 id="margin">Margin</h1>
+<h2 id="launch-full-collateral-margin-in-shadow-mode">Launch: full collateral, margin in shadow mode</h2>
+<p>At launch, full collateral means max loss is locked per trade — no margin engine dependency for pre-trade. The margin engine runs in <strong>shadow mode</strong>: computing risk analytics, collecting data, and validating models, but not driving any collateral decisions.</p>
+<p>When SWANS offers margin (capital efficiency), the margin engine becomes production. How that works is an open design question — see <a href="../clearing/">Clearing</a>.</p>
 <h2 id="methodology-overview">Methodology overview</h2>
 <p><strong>Two engines.</strong> The MPOR engine (close-out loss simulation) is authoritative for clearing IM. A terminal engine runs as a standing challenger. Cross-engine divergence is meaningful only under aligned comparison — a 5-day close-out loss and a to-resolution terminal loss are different by design.</p>
 <p><strong>Three layers, kept separate.</strong> Structural maximum loss (exact over admissible family states); terminal VaR/ES (diagnostic); and production margin: close-out loss over a margin period of risk (MPOR).</p>
@@ -1715,12 +1666,7 @@ IM_event = (1 - lambda) * IM + lambda * L_gross
 </table>
 <p>Inter-DCO cross-margining is a separate architecture.</p>
 <h2 id="launch-posture">Launch posture</h2>
-<p>Phase 0: full collateral with the MPOR engine in shadow mode. Phase 1: hybrid margin for approved institutions. Phase 2: market-maker relief. Phase 3: broader offsets.</p>
-<h2 id="variation-margin">Variation margin</h2>
-<p>At each VM window (00:00, 08:00, 16:00 UTC): <code>VM = V(t_1) - V(t_0)</code> on filtered fair marks. Call = requirement minus equity; withdrawable = equity minus requirement.</p>
-<p><strong>PB-managed:</strong> PB operationalises the call under the CSA. <strong>Full-collateral:</strong> the collateral service executes VM transfers automatically.</p>
-<h2 id="margin-call-lifecycle">Margin call lifecycle</h2>
-<p>DRAFT, ISSUED, ACKNOWLEDGED, PARTIALLY_SATISFIED, SATISFIED — with DISPUTED, FAILED and DEFAULT_ESCALATION branches. Each transition records actor, timestamp, reason and evidence.</p>
+<p>Full collateral with the margin engine in shadow mode, collecting live data and validating models. When margin is offered, phased rollout: hybrid margin for approved members, then market-maker relief, then broader offsets.</p>
 <h2 id="margin-simulator">Margin simulator</h2>
 <p><code>POST /v1/accounts/{account}/margin/simulate</code> with a hypothetical portfolio returns IM, add-on attribution, event-ramp state and fast bound.</p>
 <h2 id="files-published">Files published</h2>
