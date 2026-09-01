@@ -25,6 +25,7 @@ flowchart TB
     REP[Reporting and surveillance]
     API[REST / WebSocket / PB API]
     PBA[PB adapter]
+    COL[Collateral service]
   end
   subgraph Post-trade
     PB[Prime brokers]
@@ -44,6 +45,9 @@ flowchart TB
   PBA --> PB
   SET --> TR
   SET -->|final settlement value| PBA
+  SET -->|settlement payout| COL
+  COL -->|balance snapshots| ENG
+  ENG -->|trade locks| COL
   CE --> REF --> ENG
   PB -->|limits, kill| API --> ENG
   REP -->|RTS 22 / 24| FCA
@@ -58,13 +62,13 @@ sequenceDiagram
   participant S as SWANS
   participant P as Prime broker
   F->>S: NewOrderSingle (FIX D)
-  S->>S: pre-trade checks (PB limits + margin budget)
+  S->>S: pre-trade checks (PB limits + margin budget, or balance check)
   S->>S: match
   S-->>F: ExecutionReport (F)
   S->>P: TradeCaptureReport (drop copy via PB adapter)
   S->>P: updated margin schedule (IM/VM)
   P->>F: margin call under CSA
-  loop daily
+  loop every 8 hours (00:00, 08:00, 16:00 UTC)
     S->>P: filtered marks, VM, margin schedule
     P->>F: VM settlement, margin call if needed
   end

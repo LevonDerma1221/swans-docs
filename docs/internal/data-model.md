@@ -35,7 +35,7 @@ struct ContractSpec {
 };
 
 enum class MemberType : uint8_t { Fund, MarketMaker, Dealer, Broker };
-enum class ClearingMode : uint8_t { PrimeBroker, SelfClearing };
+enum class ClearingMode : uint8_t { PrimeBroker, SelfClearing, FullCollateral };
 struct Member  { MemberId id; char lei[20]; char name[64]; MemberType type; bool professional_attested; bool enabled; };
 struct Account { AccountId id; MemberId member; ClearerId pb; ClearingMode mode; char pb_account_ref[32]; bool enabled; };
 
@@ -73,6 +73,18 @@ struct SettlementEvent {
     InstrumentId id; int32_t value_x1e6; SettlementStatus status;
     Timestamp source_publish_time, determination_time, final_time;
     char evidence_uri[256]; uint8_t evidence_sha256[32]; char determiner_id[16]; char confirmer_id[16];
+};
+// Collateral (full-collateral mode)
+struct CollateralAccount {
+    AccountId account; int64_t balance_minor, locked_minor, available_minor, vm_cumulative_minor;
+    Currency ccy; Timestamp as_of;
+};
+struct CollateralLock {
+    AccountId account; TradeId trade; InstrumentId instrument; int64_t amount_minor; Timestamp locked_at;
+};
+struct CollateralTransfer {
+    uint64_t transfer_id; AccountId from_account, to_account; int64_t amount_minor;
+    enum Reason : uint8_t { VM, Settlement, Deposit, Withdrawal, FeePayment }; Timestamp ts;
 };
 }
 ```

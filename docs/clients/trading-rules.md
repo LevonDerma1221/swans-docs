@@ -8,7 +8,7 @@
 
 | TIF | Behaviour |
 |---|---|
-| `DAY` | Expires at end of trading day |
+| `DAY` | Expires at next VM window (00:00, 08:00 or 16:00 UTC) |
 | `GTC` | Rests until filled, cancelled, or the contract expires |
 | `GTD` | Rests until `ExpireTime` (126) |
 | `IOC` | Fills what it can immediately; remainder cancelled |
@@ -34,7 +34,7 @@ Design note: a price-dependent tick (finer near 0 and 1, as some retail-facing e
 
 ## Price bands and volatility controls
 
-- **Static band:** orders more than 40 ticks from the reference price (last daily settlement, or last trade if more recent) are rejected. Per-contract override possible.
+- **Static band:** orders more than 40 ticks from the reference price (most recent VM window mark, or last trade if more recent) are rejected. Per-contract override possible.
 - **Dynamic halt:** if the last trade moves more than 30 ticks from the price 60 seconds earlier, the contract enters a 2-minute halt, then reopens in continuous trading. Parameters per schema **[confirm with FCA expectations under RTS 7]**.
 - **Operator halt:** SWANS may halt a contract on a settlement-source event, surveillance alert or market disorder.
 
@@ -42,20 +42,24 @@ Design note: a price-dependent tick (finer near 0 and 1, as some retail-facing e
 
 Every order passes, in this order:
 
-1. Member, account and contract enabled; within trading hours; before `last_trading_time`.
+1. Member, account and contract enabled; before `last_trading_time`.
 2. PB kill switch not active.
 3. Quantity within contract and PB limits; price within bounds.
 4. Price band.
 5. Position limit (net absolute position after this order, including pending unconfirmed trades, within `position_limit`).
-6. PB gross and net notional limits.
-7. SWANS margin budget: the incremental initial margin of the order, at its limit price and including the account's open-order reservations, must be within the available budget set by its PB. See [Margin](margin.md).
+6. **Full-collateral accounts:** balance check — `available >= max_loss` where max loss = price * payout * qty (buy) or (1-price) * payout * qty (sell). Reject with `INSUFFICIENT_BALANCE` if insufficient.
+7. **PB-managed accounts:** PB gross and net notional limits; SWANS margin budget (incremental IM within available budget set by PB). See [Margin](margin.md).
 8. Post-only and reduce-only semantics.
 
 Rejections carry a reason code in tag 20001. See [Error codes](api/error-codes.md).
 
 ## Trading hours
 
-08:00–17:30 London for continuous trading, Monday–Friday excluding UK bank holidays. Individual contracts stop trading at their `last_trading_time`, which is set before the earliest possible publication of the settlement source. The daily settlement price is the filtered fair mark at 17:00 London.
+**24/7 continuous trading.** The matching engine runs without interruption. There is no opening or closing session and no weekend halt.
+
+- Individual contracts stop trading at their `last_trading_time`, which is set before the earliest possible publication of the settlement source.
+- **VM windows:** 00:00, 08:00, 16:00 UTC. Marks are fixed at each window; VM is computed and settled.
+- The reference price is the most recent VM window mark (not a daily settle).
 
 ## RFQ (OTF mode)
 

@@ -63,6 +63,7 @@ nav:
           - Margin service: internal/services/margin.md
           - Settlement service: internal/services/settlement.md
           - Market data publisher: internal/services/mdpub.md
+          - Collateral service: internal/services/collateral.md
           - Reporting and surveillance: internal/services/reporting.md
       - Core analytics library: internal/risk-library.md
       - High availability and DR: internal/ha-failover.md

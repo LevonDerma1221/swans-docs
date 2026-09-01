@@ -35,7 +35,7 @@ SWANS is not in the credit chain. If a member defaults, the PB manages the close
 
 ## Drop copies and files
 
-PBs receive real-time `TradeCaptureReport` messages for their clients' fills and, daily: trade file, position file, margin schedule per client, and price/risk file.
+PBs receive real-time `TradeCaptureReport` messages for their clients' fills and, at each VM window: trade file, position file, margin schedule per client, and price/risk file.
 
 ## Settlement flow
 
@@ -44,9 +44,27 @@ PBs receive real-time `TradeCaptureReport` messages for their clients' fills and
 3. PB executes cash settlement with member: pays out or collects based on final value.
 4. Margin released.
 
+## Full-collateral mode
+
+For members without a PB, or as a day-one fallback, SWANS offers a fully collateralised mode:
+
+| Aspect | How it works |
+|---|---|
+| **Cash custody** | Member deposits to a CASS client money account held by SWANS via a regulated custodian |
+| **Pre-trade** | Balance check: `available >= max_loss` (no margin engine dependency) |
+| **On trade** | Max loss locked from both buyer and seller; total locked = payout * qty |
+| **VM windows** | Every 8 hours (00:00, 08:00, 16:00 UTC): mark-to-market transfers between accounts, locks adjusted |
+| **Settlement** | Payout distributed from locked funds; locks released |
+| **Margin call** | If balance cannot cover adjusted lock after VM, risk-increasing orders blocked until deposit or position reduction |
+| **Withdrawal** | Via REST API; only `available` balance can be withdrawn |
+
+Both modes can run simultaneously on the same venue. See [Collateral service](../internal/services/collateral.md) for implementation details.
+
 ## Default handling
 
-Handled under the PB's CSA with the member. SWANS suspends trading rights on accounts of a defaulting member on notice from the PB.
+**PB-managed accounts:** handled under the PB's CSA with the member. SWANS suspends trading rights on accounts of a defaulting member on notice from the PB.
+
+**Full-collateral accounts:** max loss is always locked, so there is no credit exposure. If a member cannot meet a margin call after a VM window, risk-increasing orders are blocked but existing positions remain. SWANS may close out positions under the rulebook if the shortfall persists.
 
 ## Future: CCP clearing
 

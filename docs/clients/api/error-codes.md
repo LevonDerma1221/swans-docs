@@ -20,7 +20,8 @@
 | 1050 | PB_GROSS_LIMIT | |
 | 1051 | PB_NET_LIMIT | |
 | 1052 | PB_DAILY_LOSS | |
-| 1060 | MARGIN_BUDGET | Incremental IM exceeds available budget |
+| 1055 | INSUFFICIENT_BALANCE | Full-collateral account: available balance < max loss for order |
+| 1060 | MARGIN_BUDGET | Incremental IM exceeds available budget (PB-managed accounts) |
 | 1070 | SELF_MATCH | Cancelled by self-trade prevention (incoming-cancel mode) |
 | 1080 | POST_ONLY_CROSS | Post-only order would cross |
 | 1081 | REDUCE_ONLY_INCREASE | Reduce-only order would increase exposure |

@@ -1,12 +1,12 @@
 # System architecture (internal)
 
-**Version 2.0.** Bilateral/PB launch model. CCP clearing is a future upgrade path.
+**Version 3.0.** Bilateral/PB + full-collateral dual mode. 24/7 continuous trading. CCP clearing is a future upgrade path.
 
 ## Build / buy
 
 | Component | Decision | Why |
 |---|---|---|
-| Reference data, contract engine, trades, positions, marks, risk engine, margin and fees, settlement, pre-trade risk | **Build** | Core product; what PBs and members evaluate |
+| Reference data, contract engine, trades, positions, marks, risk engine, margin and fees, settlement, pre-trade risk, collateral service | **Build** | Core product; what PBs and members evaluate |
 | PB adapter | **Build** | FIX drop copy + margin schedule delivery; thin layer |
 | Matching engine, FIX gateway, market data publisher | Build in phase 1 (simplified); evaluate commercial FIX engine for production | Binary book is small; in-house lets us test end-to-end now |
 | Surveillance | Buy (SMARTS or equivalent); we supply feeds | FCA expects a recognised system |
@@ -21,28 +21,50 @@ Full diagrams: [End-to-end views](../diagrams.md).
  Members ──FIX──▶ Gateway ──▶ [Engine shard: PreTrade → Matching] ──┬──▶ MarketData ──▶ Members
                                           ▲                          ├──▶ Trades ──▶ PB adapter
                                           │ margin budgets           │        │
+                                          │ balance snapshots        │   Collateral service
                                      MarginService ◀── RiskEngine ◀── Positions ◀────┘
                                           │               ▲
           PB files, margin schedule ◀─────┘        ReferenceData ──▶ all
                                                           ▲
-                                                  Settlement ──▶ Trades / Positions / PB adapter
+                                                  Settlement ──▶ Trades / Positions / PB adapter / Collateral
                                                   Reporting & surveillance extracts ◀── all
                                                   PB API ──▶ PreTrade limits
                                                   REST/WS API ──▶ read models
 ```
 
-Pre-trade risk runs as a **stage inside the engine shard process** (no IPC hop), as a separate module.
+Pre-trade risk runs as a **stage inside the engine shard process** (no IPC hop), as a separate module. It checks both PB limits/margin budget (PB-managed accounts) and available balance (full-collateral accounts).
+
+## Collateral service
+
+Manages member balances for full-collateral accounts. See [Collateral service](services/collateral.md).
+
+- Tracks deposits, locked collateral, available balance, VM transfers, settlement payouts, withdrawals
+- Pushes balance snapshots to the engine pre-trade stage via `collateral.balances`
+- On trade: locks max loss from both sides
+- On VM window (every 8 hours): transfers mark-to-market changes between accounts
+- On settlement: distributes payout, releases locks
+
+Runs alongside the PB adapter — accounts can be PB-managed or fully collateralised.
 
 ## Clearing layer: PB adapter
 
 The PB adapter is a service that:
 - Sends `TradeCaptureReport` (FIX drop copy) to PBs on each match
 - Delivers margin schedule updates (IM/VM per account) to PBs
-- Delivers daily price and risk file to PBs
+- Delivers price and risk file to PBs
 - Delivers settlement values to PBs for cash settlement
 - Receives PB limit updates (max order size, notional limits, kill switch)
 
 This is architecturally identical to a CCP adapter — same interface, different counterparty. When a CCP is available, swap the adapter.
+
+## Trading hours
+
+**24/7 continuous trading.** The matching engine runs without interruption. There is no opening or closing.
+
+- **VM windows:** 00:00, 08:00, 16:00 UTC. Marks are fixed at each window; VM is computed and settled.
+- **Settlement determination:** happens when the source publishes, regardless of time. Two-officer process operates during business hours; automated sources can trigger at any time.
+- **Maintenance:** rolling hot-deploy; no planned downtime windows. If maintenance requires a halt, 24-hour notice to members.
+- **Reference price:** the most recent VM window mark (not "daily settle").
 
 ## Deployment
 
@@ -57,7 +79,8 @@ This is architecturally identical to a CCP adapter — same interface, different
 ## Contract economics (locked)
 
 - Price in [0.005, 0.995], ticks of 0.005, integer `price_ticks in [1, 199]`; payout 100 units; minimum notional $100; currencies GBP/USD/EUR, one per contract.
-- **Futures-style margining.** No premium at trade time; daily VM; IM from the margin service.
+- **PB-managed accounts:** futures-style margining. No premium at trade time; VM at each window; IM from the margin service.
+- **Full-collateral accounts:** max loss locked at trade time. VM transfers at each window. No margin engine dependency for pre-trade.
 - One book per contract in yes-space.
 - **Packages are separate products** with their own bounded payoff. Leg decomposition exists only inside SWANS's risk and position views.
 
