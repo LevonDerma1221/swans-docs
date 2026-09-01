@@ -46,4 +46,4 @@ Designated liquidity providers with quoting obligations (presence, spread, size 
 
 ## Other fees
 
-Membership (annual), connectivity (per session, per cross-connect), market data (per subscriber, per level), erroneous-trade review (per request). PB fees are set by your prime broker.
+Membership (annual), connectivity (per session, per cross-connect), market data (per subscriber, per level), erroneous-trade review (per request).

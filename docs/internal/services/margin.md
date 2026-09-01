@@ -1,6 +1,8 @@
 # Margin service
 
-The V6 methodology computes margin for all account types. In PB-managed mode, SWANS is calculation agent under the CSA. In full-collateral mode, margin drives lock adjustments and VM transfers. The model is the same regardless of clearing mode.
+**At launch, the margin engine runs in shadow mode** — computing risk analytics, collecting data, and validating models, but not driving collateral decisions. Full collateral locks max loss per trade with no VM or margin calls.
+
+**When margin is offered** (via PB integration, CCP, or another mechanism), the margin engine becomes production: it drives IM, VM, margin calls, and collateral locks.
 
 ## Components
 
@@ -9,20 +11,19 @@ The V6 methodology computes margin for all account types. In PB-managed mode, SW
 | Fair probability filter | Marks service |
 | Probability, resolution-intensity, Monte Carlo engine | `libswansrisk` (Mehdi's models) |
 | Margin calculator | This service |
-| VM engine | This service computes; PB collects or collateral service transfers |
-| Collateral engine | PB (PB-managed) or collateral service (full-collateral) |
+| VM engine | This service (future: when margin is offered) |
 | Stress-resource control | This service |
 | Model governance | This service + governance |
 | Participant simulator | This service (`POST /margin/simulate`) |
 
 ## Computation
 
-Per account, per run (at each VM window 00:00/08:00/16:00 UTC; intraday on triggers):
+Per account, per run:
 
 1. Load positions, families, filtered marks, hedge positions
 2. Structural max loss `L_gross` by family over admissible states
 3. MPOR horizon with add-ons: `h = h_base + h_liq + h_conc + h_ops + h_oracle`
-4. Monte Carlo over MPOR: latent-factor diffusion, marked jumps, correlated resolution, close-out slippage, VM timing
+4. Monte Carlo over MPOR: latent-factor diffusion, marked jumps, correlated resolution, close-out slippage
 5. Core: `IM_core = max(VaR_99%, ES_97.5%, IM_jump, floor)`
 6. Add-ons: liquidity, concentration, oracle, model risk, event ramp, APC
 7. `IM = min(L_gross, IM_core + add-ons)`, then event-ramp blend
@@ -30,13 +31,9 @@ Per account, per run (at each VM window 00:00/08:00/16:00 UTC; intraday on trigg
 9. Two-engine comparison: terminal engine runs in parallel; divergence recorded under aligned configurations
 10. Outputs with full attribution
 
-See [Margin and collateral](../../clients/margin.md) for the full methodology description and formulas.
+See [Margin](../../clients/margin.md) for the full methodology description and formulas.
 
-## Variation margin
-
-At each VM window: `VM = V_a(t_1) - V_a(t_0)` on filtered fair marks.
-
-## Creditable resources and margin call
+## Creditable resources and margin call (future: when margin is offered)
 
 Single authoritative resource ledger — no double counting. Settled VM, confirmed collateral and finalized cash each entered exactly once.
 
@@ -46,7 +43,7 @@ R_a = IM + VM_due + Buffer        (required resources)
 MC_a = [R_a - E_a]+               (margin call)
 ```
 
-## Margin call lifecycle
+## Margin call lifecycle (future: when margin is offered)
 
 | State | Meaning |
 |---|---|
@@ -59,8 +56,6 @@ MC_a = [R_a - E_a]+               (margin call)
 | FAILED | Payment/custody attempt failed |
 | DEFAULT_ESCALATION | Deadline reached default-management state |
 | CANCELLED | Authorized replacement/reversal |
-
-Each transition records actor, timestamp, reason and evidence.
 
 ## Gross customer margin
 
@@ -80,7 +75,7 @@ Inter-DCO cross-margining is a separate architecture and regulatory workstream.
 
 Per-fill: `f = max(f_min, B + R(1-rhoU) - D - M)` with components from book liquidity, time to event, concentration, unwind fraction, and maker quality. Anti-gaming checks run on aggregate account activity per window.
 
-## Budget
+## Budget (future: when margin is offered)
 
 `budget_available = max_swans_im - IM_current - reserved_open_orders`. Fast bound for pre-trade: `qty * payout * max(p, 1-p)`.
 
@@ -88,9 +83,8 @@ Per-fill: `f = max(f_min, B + R(1-rhoU) - D - M)` with components from book liqu
 
 | Output | Consumer | Frequency |
 |---|---|---|
-| IM + fast bound | Engine pre-trade | Every run |
-| Margin schedule with attribution | PBs | VM window + intraday |
-| VM per account | PBs, members, collateral | VM window |
-| Price and risk file | PBs, members | VM window |
-| Backtest and sensitivity report | PBs, FCA | Monthly |
+| IM + fast bound | Shadow mode analytics (launch); pre-trade (when margin offered) | Every run |
+| Margin schedule with attribution | Future: PBs or margin counterparty | On trigger |
+| Price and risk file | Members, future counterparties | Periodic |
+| Backtest and sensitivity report | FCA | Monthly |
 | Two-engine divergence | Risk desk | Every official run |

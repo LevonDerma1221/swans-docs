@@ -50,6 +50,6 @@ Full collateral with the margin engine in shadow mode, collecting live data and 
 
 | File | Recipient | Frequency |
 |---|---|---|
-| Margin schedule with attribution | Prime brokers | VM window, intraday on trigger |
-| Price and risk file | Prime brokers, members | VM window |
-| Backtest and sensitivity report | Prime brokers, FCA | Monthly |
+| Price and risk file | Members | Periodic |
+| Backtest and sensitivity report | FCA | Monthly |
+| Margin schedule with attribution | Future: margin counterparty (PB, CCP, or other) | When margin is offered |

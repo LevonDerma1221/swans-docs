@@ -16,11 +16,12 @@ flowchart TB
     COL -->|balances| ENG
     MK[Marks] --> SET[Settlement]
     SET --> COL
+    RISK[Risk engine - shadow mode]
   end
 
-  MD -->|market data| MEM
+  MD -->|book, trades, status| MEM
   COL -->|lock max loss, settle payouts| MEM
-  RISK[Risk engine] -->|analytics| MEM
+  RISK -->|price file, analytics| MEM
 ```
 
 ## 2. Trade lifecycle (full collateral)
