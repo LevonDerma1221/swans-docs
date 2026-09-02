@@ -1,54 +1,42 @@
-# Core analytics library (`libswansrisk`)
+# Risk library
 
-One library; the venue services, Product A and Product B call it. No service dependencies. Numerics Eigen 3.4; RNG PCG64; no exceptions in hot paths.
+One library; the venue services, margin engine and risk engine call it. No service dependencies. Numerics Eigen 3.4; RNG PCG64; no exceptions in hot paths. Production core in C++20; calibration and research in Python.
 
 ```
 swans/risk/
-  instruments/  BinaryEvent, MeasuredEvent, Family (standalone, nested, ME, cluster), Hedge
-  marks/        candidates, logit combiner, filter, family projection            (V6 §11)
-  models/       IPricingModel, ICalibrator, IMarginModel, IHazardModel           ← Mehdi's implementations
-  factors/      latent loading file loader with Σ B² + w² = 1 assertion           (V6 §10.1)
-  simulate/     latent diffusion, marked jump-to-resolution, cluster resolution, MPOR paths   (V6 §9, §13)
-  margin/       structural max loss over admissible states, terminal VaR/ES, MPOR VaR/ES, jump, add-ons, event ramp, cap   (V6 §5, §12–15)
+  instruments/  BinaryEvent, MeasuredEvent, Family, Hedge
+  marks/        candidates, logit combiner, filter, family projection
+  models/       IPricingModel, ICalibrator, IMarginModel, IHazardModel   <- Mehdi's implementations
+  factors/      latent loading file loader
+  simulate/     latent diffusion, marked jump-to-resolution, cluster resolution, MPOR paths
+  margin/       structural max loss, terminal VaR/ES, MPOR VaR/ES, add-ons, event ramp, margin call lifecycle
+  collateral/   eligibility, haircuts, collateral equity, resource comparison
   fees/         v3 fee components, z-score, smoothstep, attribution
-  measures/     factor exposures, scenarios, XVA (bilateral only)
-  io/           loaders, CCP parameter writer, schedule writer, price-risk file writer
+  measures/     factor exposures, scenarios, stress-resource consumption
+  io/           loaders, PB schedule writer, price-risk file writer, SFTP batch file writer
 ```
 
-```cpp
-namespace swans::risk {
-struct InstrumentRef { enum Kind : uint8_t { Venue, Hedge } kind; uint32_t id; };
-struct FamilyDef { uint32_t id; FamilyType type; std::vector<uint32_t> members; std::vector<std::vector<uint8_t>> admissible; };
-struct MarketSnapshot { Timestamp as_of; std::unordered_map<uint32_t,double> fair_mark, settle, hedge_price;
-                        std::unordered_map<std::string,double> implied_move, factor_level; std::vector<FamilyDef> families; };
-struct EventState { double p, hazard1, hazard0, t_to_event_years, event_ramp; };
-struct Position { InstrumentRef ref; double qty; };
-struct Portfolio { AccountId account; std::vector<Position> positions; };
-struct MarginParams { double var_conf=0.99, es_conf=0.975, kappa_es=1.0; int mpor_days_base=2;
-                      bool allow_family_netting=true; uint8_t offset_stage=1; double liq_tier_beta, conc_zeta, conc_threshold,
-                      model_risk_zeta, apc_theta, oracle_addon; bool market_maker_relief=false; };
-struct MarginResult { double im, l_gross, var_mpor, es_mpor, im_jump, floor, a_liq, a_conc, a_oracle, a_model, a_event, a_apc;
-                      double lambda_event; int mpor_days; double fast_bound; std::vector<std::pair<std::string,double>> attribution; };
+## Two-engine architecture
 
-class IPricingModel { public: virtual ~IPricingModel()=default;
-    virtual double price(const ContractSpec&, const EventState&, const MarketSnapshot&) const=0;
-    virtual std::vector<double> factorSensitivities(const ContractSpec&, const EventState&, const MarketSnapshot&) const=0; };
-class ICalibrator { public: virtual ~ICalibrator()=default;
-    virtual std::unordered_map<uint32_t,EventState> calibrate(const std::vector<ContractSpec>&, const MarketSnapshot&) const=0; };
-class IHazardModel { public: virtual ~IHazardModel()=default;
-    virtual std::pair<double,double> intensities(const ContractSpec&, const EventState&, Timestamp) const=0; };   // Λ¹, Λ⁰
-class IMarginModel { public: virtual ~IMarginModel()=default;
-    virtual MarginResult margin(const Portfolio&, const MarketSnapshot&, const MarginParams&) const=0;
-    virtual double incremental(const Portfolio&, const Position&, const MarketSnapshot&, const MarginParams&) const=0;
-    virtual double fastBound(const Position&, const MarketSnapshot&) const=0; };
+| Engine | Purpose | Authority |
+|---|---|---|
+| **MPOR engine** | Close-out loss over the margin period of risk `[t, t+h]` | Authoritative for clearing IM |
+| **Terminal engine** | Terminal joint law through factor copula; to-resolution loss | Challenger, diagnostics, stress |
 
-double structuralMaxLoss(const Portfolio&, const MarketSnapshot&);            // over admissible states, family by family
-std::vector<double> projectToFamily(const std::vector<double>& marks, const FamilyDef&);
-struct FeeInputs { double p; int side; double notional; double tau; double liquidity_L; std::map<uint32_t,double> conc_by_family;
-                   double unwind_U; double maker_Q; };
-struct FeeResult { double bps; std::map<std::string,double> components; bool floor_applied; };
-FeeResult computeFee(const FeeInputs&, const FeeParams&);
-}
-```
+**Common economic-state contract.** Both engines share the same versioned factor taxonomy, calibration snapshot, and instrument-to-value mappings. They may carry different path/terminal-specific state variables (`S_MPOR = S_shared + U_path`; `S_terminal = S_shared + U_terminal`). A run is rejected only for a semantic/version mismatch in the shared contract, not for different dimensions or horizons.
 
-**Golden tests:** Mehdi's Python reference (structural max loss, terminal VaR/ES, concentration add-on, fee lab archetypes) produces golden outputs; C++ must match to tolerance. **Backtests** disclose synthetic price paths wherever venue history is absent.
+**Cross-engine divergence (comparable-run rule).** Divergence `D_a` is diagnostic only when outputs are aligned on horizon, measure, portfolio snapshot and output definition. A difference between a 5-day close-out loss and a to-resolution terminal loss is expected, not a defect. Persistent divergence under aligned comparison is a model-governance trigger.
+
+## Key interfaces
+
+Models implement `IPricingModel`, `ICalibrator`, `IMarginModel`, `IHazardModel`. The library never contains model logic — Mehdi's implementations plug in. See the risk engine technical specification for full interface definitions and quantitative detail.
+
+## Simulation
+
+Event-contract dynamics: bounded diffusion plus marked jumps to resolution. Hierarchical latent factor model with global, family-local, and idiosyncratic components. Factor identification rule: the conceptual basis for portfolio-margin offsets may include complement/substitute relationships, shared inputs, or common external drivers — not limited to a named global factor.
+
+Requirements: common random numbers for before/after comparisons; deterministic replay from seed + build hash; probability states in [0, 1]; structural-family invariants validated per scenario; Monte Carlo standard error reported when it can affect a margin decision.
+
+## Golden tests
+
+Mehdi's Python reference (structural max loss, terminal VaR/ES, concentration add-on, fee lab archetypes) produces golden outputs; C++ must match to tolerance. Backtests disclose synthetic price paths wherever venue history is absent.

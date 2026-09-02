@@ -1,13 +1,13 @@
-# System architecture (internal)
+# Architecture
 
-**Version 1.0.** Supersedes v0.1 and v0.2; incorporates Margin Framework v6, Fee Model v3, the contract engine, families, and the stress-test fixes (packages as CCP products, GCM-set margin budget, pending positions, STP in the engine, stale-budget fallback, synthetic backtest disclosure, volatility halts, RTS 24 fields).
+**Version 4.0.** Full collateral at launch. Margin (via PB, CCP, or alternative) is a future upgrade. 24/7 continuous trading.
 
 ## Build / buy
 
 | Component | Decision | Why |
 |---|---|---|
-| Reference data, contract engine, trades, positions, marks, risk engine, margin and fees, settlement, pre-trade risk | **Build** | The product; hard to outsource; what the CCP, GCMs and clients evaluate |
-| Matching engine, FIX gateway, market data publisher | Build in phase 1 (simplified); evaluate Eqlipse / commercial FIX engine for production | Binary book is small; in-house lets us test end-to-end now; conformance is the real cost |
+| Reference data, contract engine, trades, positions, marks, risk engine, margin and fees, settlement, pre-trade risk, collateral service | **Build** | Core product |
+| Matching engine, FIX gateway, market data publisher | Build in phase 1 (simplified); evaluate commercial FIX engine for production | Binary book is small; in-house lets us test end-to-end now |
 | Surveillance | Buy (SMARTS or equivalent); we supply feeds | FCA expects a recognised system |
 | Transaction reporting submission | Buy (ARM); we build the extract | Plumbing |
 | Trading UI | Build later, thin, on the REST/WS API | Members use their own OMS |
@@ -17,38 +17,61 @@ Full diagrams: [End-to-end views](../diagrams.md).
 ## Services
 
 ```
- Members ──FIX──▶ Gateway ──▶ [Engine shard: PreTrade → Matching → STP] ──┬──▶ MarketData ──▶ Members
-                                          ▲                                 ├──▶ Trades ──▶ CCP adapter
-                                          │ margin budgets                  │        │
-                                     MarginService ◀── RiskEngine ◀── Positions ◀────┘
-                                          │               ▲
-              GCM files, CCP params ◀─────┘        ReferenceData ──▶ all
-                                                          ▲
-                                                  Settlement ──▶ Trades / Positions / CCP
-                                                  Reporting & surveillance extracts ◀── all
-                                                  Clearer API ──▶ PreTrade limits
-                                                  REST/WS API ──▶ read models
+Members ──FIX──▶ Gateway ──▶ [Engine: PreTrade → Matching] ──┬──▶ MarketData ──▶ Members
+                                       ▲                       ├──▶ Trades
+                                       │ balance snapshots     │
+                                  Collateral service ◀─────────┘
+                                  RiskEngine (shadow mode) ◀── Positions
+                                  ReferenceData ──▶ all
+                                  Settlement ──▶ Trades / Positions / Collateral
+                                  Reporting & surveillance ◀── all
+                                  REST/WS API ──▶ read models
 ```
 
-Pre-trade risk runs as a **stage inside the engine shard process** (no IPC hop), as a separate module. STP submission is initiated by the trades service on `TradeExecuted`.
+Pre-trade risk runs as a **stage inside the engine shard process** (no IPC hop). At launch it checks available balance (full collateral). Future: PB limits and margin budget when margin is offered.
+
+## Collateral service
+
+Manages member balances. See [Collateral service](services/collateral.md).
+
+- Tracks deposits, locked collateral, available balance, settlement payouts, withdrawals
+- Pushes balance snapshots to the engine pre-trade stage via `collateral.balances`
+- On trade: locks max loss from both sides
+- On settlement: distributes payout, releases locks
+- No variation margin — locks stay fixed between trade and settlement
+
+## Clearing layer
+
+**Full collateral (launch).** The collateral service handles everything: balance checks, locks, settlement payouts. No external dependency. No VM — locks stay fixed until settlement.
+
+**Future margin mode.** How to offer capital efficiency (margin/leverage) is an open design question — PB integration, CCP, blockchain, or SWANS-managed margin. A PB/CCP adapter could be added without changing the core system.
+
+## Trading hours
+
+**24/7 continuous trading.** The matching engine runs without interruption. There is no opening or closing.
+
+- **Settlement determination:** happens when the source publishes, regardless of time. Two-officer process operates during business hours; automated sources can trigger at any time.
+- **Maintenance:** rolling hot-deploy; no planned downtime windows. If maintenance requires a halt, 24-hour notice to members.
+- **Reference price:** filtered fair mark.
 
 ## Deployment
 
-- **Production:** LD4 (Equinix Slough). Two racks, dedicated switches, member cross-connects. Engine and gateway hosts pinned, isolated cores, kernel bypass optional later.
+- **Production:** LD4 (Equinix Slough). Two racks, dedicated switches, member cross-connects.
 - **DR:** second site, warm standby, journal shipping; RTO 2 hours **[confirm RTS 7]**.
 - **Prototype:** one VM per service or Docker Compose on a single host.
 
 ## Time
 
-`int64_t` nanoseconds since Unix epoch, UTC, everywhere. Production clocks disciplined by PTP; RTS 25 traceability to UTC (≤ 100 µs or ≤ 1 ms depending on classification **[confirm]**). Prototype uses NTP.
+`int64_t` nanoseconds since Unix epoch, UTC, everywhere. Production clocks disciplined by PTP; RTS 25 traceability to UTC.
 
-## Contract economics (locked)
+## Contract economics
 
-- Price in [0.005, 0.995], ticks of 0.005, integer `price_ticks ∈ [1, 199]`; payout 100 units; currencies GBP/USD/EUR, one per contract.
-- **Futures-style margining.** No premium at trade time; daily VM; IM from the margin service. **The first question to the CCP is whether it will clear binaries futures-style; several CCPs only clear binaries premium-style.**
+- Price in [0.01, 0.99], tick = 0.01, 99 price levels; contract size 100; currencies GBP/USD/EUR.
+- Full collateral: max loss locked at trade time. No margin engine dependency for pre-trade.
 - One book per contract in yes-space.
-- **Packages are separate products** at the CCP with their own bounded payoff. Leg decomposition exists only inside SWANS's risk and position views.
+- Packages are separate products with their own bounded payoff.
+- **Payout structure is not final.** See [Open decisions #2](open-decisions.md).
 
 ## Non-goals for phase 1
 
-Auctions, iceberg orders, HA failover, hardware timestamps, multicast market data, real ARM submission, OTF discretion workflow (interface reserved).
+Auctions, iceberg orders, HA failover, hardware timestamps, multicast market data, real ARM submission, PB adapter, CCP adapter, margin mode.

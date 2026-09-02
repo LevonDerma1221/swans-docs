@@ -1,13 +1,13 @@
 # Settlement
 
-SWANS is the settlement authority for its contracts. Final settlement is determined against the contract's named source under its schema policy, published, and delivered to the CCP for cash settlement.
+SWANS is the settlement authority for its contracts. Final settlement is determined against the contract's named source under its schema policy, published, and delivered to PBs (PB-managed accounts) or executed via the collateral service (full-collateral accounts).
 
 ## Determination process
 
 1. **Proposed.** A settlement officer records the source publication (canonical URI, retrieval timestamp, SHA-256 of the retrieved document) and the proposed settlement value against the contract's question.
 2. **Determined.** A second, independent officer confirms. Two distinct officers are required; the system enforces it.
 3. **Dispute window.** Members may dispute within the schema's window (default 24 hours) by submitting evidence. Disputes go to the settlement committee, whose decision is final under the rulebook.
-4. **Final.** Settlement is published (REST, WebSocket `settlement` channel, FIX `SecurityStatus`) and delivered to the CCP. Positions cash-settle at `value × payout` through the last variation margin.
+4. **Final.** Settlement is published (REST, WebSocket `settlement` channel, FIX `SecurityStatus`). PB-managed accounts: value delivered to PB for cash settlement. Full-collateral accounts: collateral service distributes payout (buyer receives `V × payout × qty`, seller receives `(1−V) × payout × qty`), releases locks.
 5. **Fallback.** If the settlement deadline passes without a determinable outcome, the schema's fallback rule applies: settle at 0, settle at the last daily settlement price, or void, as specified in reference data at listing. Fallback settlements are flagged as such.
 
 ## Sources

@@ -1,8 +1,13 @@
 site_name: SWANS Event Exchange — Documentation
-site_description: Client documentation and internal build specification for the SWANS MTF
+site_description: Internal technical specification for the SWANS event exchange
+repo_url: https://github.com/LevonDerma1221/swans-docs
+edit_uri: edit/main/docs/
 theme:
   name: material
+  custom_dir: overrides
   features: [navigation.sections, navigation.expand, content.code.copy, toc.integrate]
+  icon:
+    edit: material/pencil
 markdown_extensions:
   - tables
   - admonition
@@ -15,62 +20,41 @@ markdown_extensions:
           format: !!python/name:pymdownx.superfences.fence_code_format
 
 nav:
-  - Overview: index.md
-  - End-to-end views: diagrams.md
-  - Client documentation:
-      - Quickstart: clients/quickstart.md
+  - SWANS Overview:
+      - Overview: index.md
+      - Diagrams: diagrams.md
       - Architecture: clients/architecture.md
-      - Guarantees and non-guarantees: clients/guarantees.md
       - Onboarding: clients/onboarding.md
       - Contracts: clients/contracts.md
       - Schemas and contract engine: clients/schemas.md
       - Trading rules: clients/trading-rules.md
-      - Margin and collateral: clients/margin.md
+      - Clearing and collateral: clients/clearing.md
+      - Margin: clients/margin.md
       - Fees: clients/fees.md
-      - PnL and variation margin: clients/pnl.md
-      - Clearing and give-up: clients/clearing.md
       - Settlement: clients/settlement.md
       - Market data: clients/market-data.md
-      - Reconciliation: clients/reconciliation.md
-      - Versioning and change management: clients/change-management.md
-      - API:
-          - Authentication and keys: clients/api/auth.md
-          - Order and event semantics: clients/api/semantics.md
-          - Examples: clients/api/examples.md
-          - Rate limits and close codes: clients/api/rate-limits.md
-          - FIX order entry: clients/api/fix.md
-          - REST API: clients/api/rest.md
-          - WebSocket API: clients/api/websocket.md
-          - Clearer API: clients/api/clearer.md
-          - Reference types: clients/api/reference-types.md
-          - Error codes: clients/api/error-codes.md
-      - Conformance: clients/conformance.md
-  - Internal build specification:
-      - System architecture: internal/architecture.md
+  - System design:
+      - Architecture: internal/architecture.md
       - Data model: internal/data-model.md
-      - Messaging and journals: internal/messaging.md
-      - Services:
-          - Reference data: internal/services/refdata.md
-          - Contract engine: internal/services/contract-engine.md
-          - Marks: internal/services/marks.md
-          - FIX gateway: internal/services/gateway.md
-          - Pre-trade risk: internal/services/pretrade.md
-          - Matching engine: internal/services/engine.md
-          - Trades service: internal/services/trades.md
-          - Position service: internal/services/positions.md
-          - Risk engine: internal/services/riskengine.md
-          - Margin service: internal/services/margin.md
-          - Settlement service: internal/services/settlement.md
-          - Market data publisher: internal/services/mdpub.md
-          - Reporting and surveillance: internal/services/reporting.md
-      - Core analytics library: internal/risk-library.md
-      - High availability and DR: internal/ha-failover.md
-      - Capacity and performance: internal/capacity.md
-      - Security: internal/security.md
-      - Operations runbooks: internal/operations.md
+      - Messaging: internal/messaging.md
+  - Specs:
+      - Reference data: internal/services/refdata.md
+      - Contract engine: internal/services/contract-engine.md
+      - FIX gateway: internal/services/gateway.md
+      - Pre-trade risk: internal/services/pretrade.md
+      - Matching engine: internal/services/engine.md
+      - Trades: internal/services/trades.md
+      - Positions: internal/services/positions.md
+      - Collateral: internal/services/collateral.md
+      - Marks: internal/services/marks.md
+      - Market data publisher: internal/services/mdpub.md
+      - Settlement: internal/services/settlement.md
+      - Risk engine: internal/services/riskengine.md
+      - Margin: internal/services/margin.md
+      - Risk library: internal/risk-library.md
+      - Reporting: internal/services/reporting.md
+  - Plan & decisions:
+      - Roadmap: internal/build-plan.md
       - Governance: internal/governance.md
-      - Regulatory mapping: internal/regulatory-mapping.md
-      - Toolchain and repo: internal/toolchain.md
-      - Testing: internal/testing.md
-      - Build plan: internal/build-plan.md
-      - Open decisions: internal/open-decisions.md
+      - Open questions: internal/open-decisions.md
+      - "Reference: margin & liquidation architecture": internal/margin-architecture-reference.md

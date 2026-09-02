@@ -1,34 +1,50 @@
-# SWANS Event Exchange
+# Overview
 
-SWANS is an FCA-regulated, professional-only trading venue for standardised, cash-settled event contracts on corporate and macro catalysts: FDA decisions, earnings thresholds, litigation outcomes, M&A completions, central bank and regulatory rulings. Contracts trade on a central limit order book, are margined futures-style, and clear at a partner central counterparty.
+SWANS is a trading venue for standardised, cash-settled event contracts on corporate and macro catalysts. This document is the **working technical specification** — the team reviews and iterates on it before we build.
 
-**Visual overview:** [End-to-end views](diagrams.md).
+**Status:** draft architecture. Items marked **[confirm]** need a decision — see [Open decisions](internal/open-decisions.md).
 
-**Status:** pre-authorisation. This documentation describes the venue as it will operate at launch. Anything marked **[confirm]** is pending counsel or counterparty confirmation.
+## System at a glance
 
-## Quickstart
+```
+Members ──FIX──▶ Gateway ──▶ Engine (pre-trade + matching) ──▶ Market data ──▶ Members
+                                        │
+                                        ├──▶ Trades ──▶ Collateral service (lock max loss)
+                                        └──▶ Settlement ──▶ Collateral service (distribute payout)
 
-1. **Membership.** Apply as a trading member (professional clients and eligible counterparties only). See [Onboarding](clients/onboarding.md).
-2. **Clearing.** Sign a clearing agreement with a general clearing member (GCM) that is a participant in the SWANS service at the partner CCP, or clear directly if you are a CCP member. See [Clearing](clients/clearing.md).
-3. **Connect.** FIX 4.4 for order entry and drop copy; REST and WebSocket for reference data and market data. See [API](clients/api/fix.md).
-4. **Certify.** Run the conformance scripts against the test environment. See [Conformance](clients/conformance.md).
-5. **Trade.** Contracts are priced 0.005–0.995 in ticks of 0.005 with a 100-unit payout. See [Contracts](clients/contracts.md).
+Margin engine    ──▶ risk analytics, price file (shadow mode at launch)
+```
 
-## Where things are
+## Clearing model
 
-| You are | Start here |
+**Full collateral at launch.** Members deposit cash. SWANS locks max loss at trade time. At settlement, payout is distributed. No variation margin, no margin calls, no adjustments in between. Simple.
+
+How to offer margin (capital efficiency without locking full max loss) is an open design question. See [Clearing](clients/clearing.md) and [Open decisions](internal/open-decisions.md).
+
+## Trading hours
+
+**24/7 continuous trading.** No close. Settlement determination happens when sources publish.
+
+## Contract economics
+
+- Price in [0.01, 0.99], tick = 0.01, 99 price levels
+- Contract size: 100 (notional = price × 100), currencies GBP/USD/EUR
+- Full collateral: max loss locked at trade time
+- One order book per contract in yes-space
+
+**Note:** the contract structure (payout function, amount, settlement kind, funding mechanics) is not final and may change. The architecture treats the payoff as a pluggable function — see [Open decisions #2](internal/open-decisions.md).
+
+## Architecture sections
+
+| Section | What it covers |
 |---|---|
-| A fund or dealer connecting to trade | [Quickstart](clients/quickstart.md), [Guarantees](clients/guarantees.md), [Semantics](clients/api/semantics.md), [FIX](clients/api/fix.md), [Margin](clients/margin.md) |
-| A clearing member | [Clearing](clients/clearing.md), [Clearer API](clients/api/clearer.md), [Reconciliation](clients/reconciliation.md) |
-| A prime broker assessing the product | [Contracts](clients/contracts.md), [Margin](clients/margin.md), [Settlement](clients/settlement.md) |
-| Building the venue | [Internal: system architecture](internal/architecture.md), [Contract engine](internal/services/contract-engine.md) |
-
-## Environments
-
-| Environment | Purpose | Location |
-|---|---|---|
-| Production | Live trading | LD4 (Equinix Slough), FIX cross-connect or VPN |
-| Certification | Conformance testing, stable | LD4 |
-| Simulation | Member development, may reset | Cloud |
-
-Base URLs and session parameters are issued at onboarding.
+| [End-to-end views](diagrams.md) | Visual diagrams of the full system |
+| [System architecture](internal/architecture.md) | Components, build/buy, deployment |
+| [Contracts](clients/contracts.md) | Contract specs, schemas, families |
+| [Clearing and collateral](clients/clearing.md) | Full collateral and future margin |
+| [Margin](clients/margin.md) | Margin methodology (shadow mode at launch) |
+| [Fees](clients/fees.md) | Fee structure and components |
+| [Settlement](clients/settlement.md) | Determination process and sources |
+| [Trading rules](clients/trading-rules.md) | Order types, limits, halts |
+| [Build plan](internal/build-plan.md) | Milestones and deliverables |
+| [Open decisions](internal/open-decisions.md) | What we still need to decide |
