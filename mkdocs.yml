@@ -57,3 +57,4 @@ nav:
       - Roadmap: internal/build-plan.md
       - Governance: internal/governance.md
       - Open questions: internal/open-decisions.md
+      - "Reference: margin & liquidation architecture": internal/margin-architecture-reference.md

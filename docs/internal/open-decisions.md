@@ -46,3 +46,31 @@
 | 25 | Legal structure: venue + calculation agent, or pursue clearing licence? | Strategic |
 | 26 | Can retail clients access the venue? Under what structure? | Strategic |
 | 27 | How do we offer margin: PB, CCP, blockchain, or something else? | Strategic |
+
+## Decision #27 — How to offer margin
+
+This is the biggest strategic question. We launch on full collateral (max loss locked, no leverage). When we want to offer capital efficiency, we need to decide the mechanism. See the [margin & liquidation architecture reference](margin-architecture-reference.md) for a full design survey.
+
+### What we already have that carries forward
+
+| Capability | Where it lives |
+|---|---|
+| Jump-to-resolution risk modeling | Risk engine (MPOR + terminal engines) |
+| Event ramp (escalate margin near catalysts) | Margin formula: IM blends toward max loss as resolution approaches |
+| Portfolio offsets (complement pairs, spreads, families) | Family types + netting layers in margin service |
+| Robust mark methodology | Logit combiner, filtered fair mark, staleness checks |
+| Forward-compatible data model | ClearingMode, PBLimits, MarginCall, pending_qty all defined |
+
+### What we'd need to build
+
+| Component | What it does | Reference |
+|---|---|---|
+| **Liquidation engine** | Closes positions when a margined account breaches maintenance margin. Internalised (venue closes against the book), then routes residual to LP auction panel. | Pillar 3 |
+| **Default waterfall** | Defaulter's margin → insurance fund → VM gains haircutting. Never touch non-winning third-party principal. | Pillar 3.4 |
+| **Insurance fund** | Sized by EVT on jump-loss distribution, Cover-2 standard (survive the two largest concentrated jump losses at 99.9%). Funded by liquidation penalties + fee levy. | Pillar 3.4 |
+| **Maintenance margin** | Volatility-adjusted threshold: `MM(p, τ) = max(floor, κ·p(1-p)·f(τ)·J)` — accounts for price level, time to resolution, and event type. | Pillar 2.3 |
+| **Backstop LP programme** | Formalised market-maker obligations: quoting duties, mandatory auction participation, event-window presence. Remunerated by fee rebates + liquidation penalty share. | Pillar 4.3 |
+
+### Key insight from the reference
+
+Leverage on event contracts is a **controlled relaxation of full collateralisation**, paid for by insurance-fund capital and portfolio offsets. It is never free. The ex-ante controls (event-window escalation, jump-scenario IM, concentration limits) are the real risk system — the insurance fund is sized for the residual.
