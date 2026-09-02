@@ -11,8 +11,8 @@ Full collateral is simple: lock max loss at trade time, release and pay out at s
 The engine's pre-trade stage checks balance before matching:
 
 ```
-max_loss = (side == Buy) ? price * payout * qty
-                         : (1 - price) * payout * qty
+max_loss = (side == Buy) ? price * contract_size * qty
+                         : (1 - price) * contract_size * qty
 
 if (account.available < max_loss) reject with INSUFFICIENT_BALANCE
 ```
@@ -23,12 +23,12 @@ Runs inside the engine shard (no RPC) using a cached balance snapshot. The colla
 
 1. Lock `max_loss` from buyer's available balance.
 2. Lock `max_loss` from seller's available balance.
-3. Total locked per trade = buyer max loss + seller max loss = payout * qty (always exactly the full payout).
+3. Total locked per trade = buyer max loss + seller max loss = contract_size * qty (always exactly the full contract value).
 
 ## On settlement
 
 1. Contract settles at value V (0 or 1 for binary, [0,1] for measured).
-2. Buyer receives: V * payout * qty. Seller receives: (1-V) * payout * qty.
+2. Buyer receives: V * contract_size * qty. Seller receives: (1-V) * contract_size * qty.
 3. Locks released. Transfers executed atomically.
 
 ## Deposits and withdrawals

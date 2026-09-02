@@ -1,6 +1,6 @@
 # Fees
 
-Fees are charged per fill, per side, in basis points of face notional (contracts × payout), and are attributed by component so that every participant can see what they paid for. The fee is a market-design control, not a flat toll: liquidity-creating and risk-reducing trades pay less; certainty-amplifying, fragile-timing and concentrating trades pay more. Parameters are published in reference data and changed only through governance with notice.
+Fees are charged per fill, per side, in basis points of face notional (contracts × contract size), and are attributed by component so that every participant can see what they paid for. The fee is a market-design control, not a flat toll: liquidity-creating and risk-reducing trades pay less; certainty-amplifying, fragile-timing and concentrating trades pay more. Parameters are published in reference data and changed only through governance with notice.
 
 ## Structure (v3)
 

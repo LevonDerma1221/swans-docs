@@ -13,7 +13,7 @@ Members deposit cash. SWANS locks max loss at trade time. At settlement, payout 
 | **Settlement** | Payout distributed, locks released |
 | **Withdrawal** | Only available (unlocked) balance can be withdrawn |
 
-This is deliberately simple. There is no credit exposure — the full payout is always locked.
+This is deliberately simple. There is no credit exposure — the full contract value is always locked.
 
 ## Default handling
 

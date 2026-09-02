@@ -27,8 +27,8 @@ How to offer margin (capital efficiency without locking full max loss) is an ope
 
 ## Contract economics
 
-- Price in [0.005, 0.995], tick = 0.005, 200 price levels
-- Payout: 100 units (GBP, USD or EUR), minimum notional $100
+- Price in [0.01, 0.99], tick = 0.01, 99 price levels
+- Contract size: 100 (notional = price × 100), currencies GBP/USD/EUR
 - Full collateral: max loss locked at trade time
 - One order book per contract in yes-space
 

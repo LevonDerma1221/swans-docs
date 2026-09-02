@@ -22,7 +22,7 @@ struct HedgeRef { uint8_t type; char identifier[24]; char venue[8]; };
 struct ContractSpec {
     InstrumentId id; char symbol[24]; char isin[12]; char cfi[6]; char fisn[35];
     SchemaType schema; SettlementKind settlement_kind; Currency ccy;
-    int32_t payout_minor;            // 10000 = 100.00
+    int32_t contract_size;           // 100 (like NASDAQ)
     PriceTicks tick; Qty min_qty; Qty lot; Qty max_order_qty; Qty position_limit;
     char issuer_lei[20]; char issuer_ticker[12]; char catalyst_id[32]; char question[512];
     SettlementSource source;
@@ -56,11 +56,12 @@ struct PBLimits {
 
 // --- Orders ---
 
+enum class OrdType : uint8_t { Limit=2, Market=1 };
 enum class Side : uint8_t { Buy=1, Sell=2 };
 enum class TimeInForce : uint8_t { Day=0, GTC=1, IOC=3, FOK=4, GTD=6 };
 enum class OrdStatus : uint8_t { New, PartiallyFilled, Filled, Cancelled, Rejected, Expired };
 struct Order {
-    OrderId id; char cl_ord_id[20]; InstrumentId instrument; AccountId account; Side side;
+    OrderId id; char cl_ord_id[20]; InstrumentId instrument; AccountId account; OrdType ord_type; Side side;
     TimeInForce tif; PriceTicks price; Qty qty, leaves, cum; Timestamp expire_time, received, accepted;
     OrdStatus status; uint8_t capacity; uint32_t smp_id; bool post_only, reduce_only;
     char inv_decision_id[16]; char exec_within_firm_id[16]; bool algo;    // RTS 24

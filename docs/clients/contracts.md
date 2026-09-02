@@ -13,7 +13,7 @@ A SWANS event contract is a cash-settled derivative whose settlement value depen
 | Binary | 1 if the settlement question is answered "yes", 0 otherwise |
 | Measured | A value in [0, 1] mapped from a published figure |
 
-Payout: 100 units of settlement currency (GBP, USD or EUR). Prices quoted between 0 and 1 in ticks of 0.005.
+Contract size: 100. Prices quoted between 0.01 and 0.99 in ticks of 0.01. Currencies: GBP, USD or EUR.
 
 One order book per contract, in "yes" space. Buying at p is economically the same as selling "no" at 1 - p.
 
@@ -21,8 +21,8 @@ One order book per contract, in "yes" space. Buying at p is economically the sam
 
 Positive quantity is long; negative is short. Maximum loss per contract:
 
-- Long at p: p x 100 (contract settles at 0)
-- Short at p: (1 - p) x 100 (contract settles at 1)
+- Long at p: p × 100 (contract settles at 0)
+- Short at p: (1 − p) × 100 (contract settles at 1)
 
 Max loss is locked at trade time and released at settlement. See [Clearing](clearing.md).
 

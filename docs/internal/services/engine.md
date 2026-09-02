@@ -8,8 +8,8 @@ struct RestingOrder { OrderId id; AccountId acct; Qty leaves; Timestamp ts; uint
 struct PriceLevel  { Qty total; RestingOrder* head; RestingOrder* tail; };
 struct Book {
     InstrumentId id;
-    std::array<PriceLevel,200> bids, asks;       // index = price ticks
-    PriceTicks best_bid = 0, best_ask = 200;
+    std::array<PriceLevel,99> bids, asks;        // index = price ticks (0.01 to 0.99)
+    PriceTicks best_bid = 0, best_ask = 99;
     uint64_t bid_bitmap[4], ask_bitmap[4];       // non-empty levels, for O(1) next-level scan
     OpenAddressingMap<OrderId, RestingOrder*> by_id;
     ObjectPool<RestingOrder> pool;

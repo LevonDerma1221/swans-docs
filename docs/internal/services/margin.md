@@ -77,7 +77,7 @@ Per-fill: `f = max(f_min, B + R(1-rhoU) - D - M)` with components from book liqu
 
 ## Budget (future: when margin is offered)
 
-`budget_available = max_swans_im - IM_current - reserved_open_orders`. Fast bound for pre-trade: `qty * payout * max(p, 1-p)`.
+`budget_available = max_swans_im - IM_current - reserved_open_orders`. Fast bound for pre-trade: `qty * contract_size * max(p, 1-p)`.
 
 ## Outputs
 

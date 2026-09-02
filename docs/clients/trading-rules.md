@@ -4,11 +4,12 @@
 
 | Order type | Notes |
 |---|---|
-| Limit | The only order type. Market orders are not supported; use IOC at an aggressive limit. |
+| Limit | Rests at specified price or better |
+| Market | Fills at best available price; unfilled remainder cancelled (behaves as IOC with no price limit) |
 
 | TIF | Behaviour |
 |---|---|
-| `DAY` | Expires at next VM window (00:00, 08:00 or 16:00 UTC) |
+| `DAY` | Expires at end of trading day (00:00 UTC) |
 | `GTC` | Rests until filled, cancelled, or the contract expires |
 | `GTD` | Rests until `ExpireTime` (126) |
 | `IOC` | Fills what it can immediately; remainder cancelled |
@@ -28,14 +29,12 @@ If an incoming order would match a resting order carrying the same self-match pr
 
 ## Tick size
 
-Fixed at 0.005 across the whole range. Price bounds are 0.005 and 0.995.
-
-Design note: a price-dependent tick (finer near 0 and 1, as some retail-facing event venues use) improves granularity where probabilities are extreme, at the cost of a variable tick that institutional OMS/EMS systems handle poorly. SWANS fixes the tick for launch and will review per contract group once liquidity near the boundaries is observed.
+Fixed at 0.01 across the whole range. Price bounds are 0.01 and 0.99 (99 price levels). Contract size is 100 (like NASDAQ event contracts).
 
 ## Price bands and volatility controls
 
-- **Static band:** orders more than 40 ticks from the reference price (most recent VM window mark, or last trade if more recent) are rejected. Per-contract override possible.
-- **Dynamic halt:** if the last trade moves more than 30 ticks from the price 60 seconds earlier, the contract enters a 2-minute halt, then reopens in continuous trading. Parameters per schema **[confirm with FCA expectations under RTS 7]**.
+- **Static band:** orders more than 20 ticks from the reference price are rejected. Per-contract override possible.
+- **Dynamic halt:** if the last trade moves more than 15 ticks from the price 60 seconds earlier, the contract enters a 2-minute halt, then reopens in continuous trading. Parameters per schema **[confirm with FCA expectations under RTS 7]**.
 - **Operator halt:** SWANS may halt a contract on a settlement-source event, surveillance alert or market disorder.
 
 ## Pre-trade risk
@@ -46,7 +45,7 @@ Every order passes, in this order:
 2. Quantity within limits; price within bounds.
 3. Price band.
 4. Position limit (net absolute position after this order within `position_limit`).
-5. Balance check: `available >= max_loss` where max loss = price * payout * qty (buy) or (1-price) * payout * qty (sell). Reject with `INSUFFICIENT_BALANCE` if insufficient.
+5. Balance check: `available >= max_loss` where max loss = price × contract size × qty (buy) or (1 − price) × contract size × qty (sell). Reject with `INSUFFICIENT_BALANCE` if insufficient.
 6. Post-only and reduce-only semantics.
 
 Rejections carry a reason code in FIX tag 20001.

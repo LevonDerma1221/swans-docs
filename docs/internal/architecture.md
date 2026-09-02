@@ -66,7 +66,7 @@ Manages member balances. See [Collateral service](services/collateral.md).
 
 ## Contract economics
 
-- Price in [0.005, 0.995], ticks of 0.005; payout 100 units; currencies GBP/USD/EUR.
+- Price in [0.01, 0.99], tick = 0.01, 99 price levels; contract size 100; currencies GBP/USD/EUR.
 - Full collateral: max loss locked at trade time. No margin engine dependency for pre-trade.
 - One book per contract in yes-space.
 - Packages are separate products with their own bounded payoff.
